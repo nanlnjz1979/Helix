@@ -1,0 +1,60 @@
+/* 页脚样式 */
+.footer-content {
+  display: flex;
+  justify-content: space-around;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.footer-link {
+  color: rgba(0, 0, 0, 0.65);
+  transition: color 0.3s;
+  display: block;
+  padding: 4px 0;
+}
+
+.footer-link:hover {
+  color: #1890ff;
+}
+
+.highlight-link {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.highlight-link:hover {
+  color: #40a9ff;
+}
+
+.footer-copyright {
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    padding: 0 15px;
+  }
+  
+  .footer-section {
+    margin-bottom: 30px;
+  }
+  
+  .footer-section:last-child {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-section {
+    min-width: auto;
+  }
+}

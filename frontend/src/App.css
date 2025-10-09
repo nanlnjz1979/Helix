@@ -1,0 +1,69 @@
+.App {
+  min-height: 100vh;
+}
+
+.site-layout-content {
+  padding: 24px;
+  background: #fff;
+  min-height: 280px;
+}
+
+.logo {
+  height: 32px;
+  margin: 16px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-menu {
+  line-height: 64px;
+}
+
+.login-form {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 30px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.register-form {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 30px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.dashboard-card {
+  margin-bottom: 24px;
+}
+
+.chart-container {
+  height: 400px;
+  margin-bottom: 24px;
+}
+
+.strategy-card {
+  margin-bottom: 16px;
+}
+
+.backtest-form {
+  margin-bottom: 24px;
+}
+
+.trading-card {
+  margin-bottom: 16px;
+}
+
+.profile-card {
+  margin-bottom: 24px;
+}
+
+.admin-table {
+  margin-top: 16px;
+}

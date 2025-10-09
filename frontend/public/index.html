@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>量化交易平台 - 专业的量化投资解决方案</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    body {
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    a {
+      text-decoration: none;
+      color: #1890ff;
+    }
+    a:hover {
+      color: #40a9ff;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    /* 导航栏样式 */
+    .navbar {
+      background-color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+    }
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 64px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+    }
+    .logo-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1890ff;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+    }
+    .nav-link {
+      margin: 0 15px;
+      font-size: 15px;
+      color: #333;
+      transition: color 0.3s;
+    }
+    .nav-link:hover {
+      color: #1890ff;
+    }
+    .nav-link.active {
+      color: #1890ff;
+      font-weight: 500;
+    }
+    .auth-buttons {
+      display: flex;
+      align-items: center;
+    }
+    .login-btn, .register-btn {
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .login-btn {
+      background-color: transparent;
+      color: #1890ff;
+      border: 1px solid #1890ff;
+      margin-right: 10px;
+    }
+    .login-btn:hover {
+      background-color: rgba(24, 144, 255, 0.1);
+    }
+    .register-btn {
+      background-color: #1890ff;
+      color: white;
+      border: 1px solid #1890ff;
+    }
+    .register-btn:hover {
+      background-color: #40a9ff;
+      border-color: #40a9ff;
+    }
+    
+    /* 英雄区域样式 */
+    .hero {
+      padding-top: 120px;
+      padding-bottom: 80px;
+      background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      color: white;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSgzMCkiPjxyZWN0IHdpZHRoPSIyIiBoZWlnaHQ9IjIiIHg9IjAiIHk9IjAiIGZpbGw9IiNmZmZmZmYxMCIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==');
+      opacity: 0.2;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    .hero-title {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: white;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      animation: fadeInUp 1s ease-out;
+    }
+    .hero-subtitle {
+      font-size: 22px;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 40px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      animation: fadeInUp 1s ease-out 0.2s both;
+    }
+    .hero-buttons {
+      margin-bottom: 60px;
+      animation: fadeInUp 1s ease-out 0.4s both;
+    }
+    .hero-btn {
+      padding: 14px 32px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 0 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .hero-btn-primary {
+      background-color: #1890ff;
+      color: white;
+      border: none;
+    }
+    .hero-btn-primary:hover {
+      background-color: #40a9ff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    }
+    .hero-btn-secondary {
+      background-color: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+    }
+    .hero-btn-secondary:hover {
+      background-color: rgba(255,255,255,0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    }
+    .hero-image {
+      max-width: 900px;
+      margin: 0 auto;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+      animation: fadeInUp 1s ease-out 0.6s both;
+      position: relative;
+    }
+    .hero-image img {
+      width: 100%;
+      border-radius: 12px;
+      transition: transform 0.5s ease;
+    }
+    .hero-image:hover img {
+      transform: scale(1.02);
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* 特点区域样式 */
+    .features {
+      padding: 100px 0;
+      background-color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .features::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(24, 144, 255, 0.1) 0%, rgba(24, 144, 255, 0) 70%);
+      border-radius: 50%;
+      z-index: 0;
+    }
+    .features::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(24, 144, 255, 0.05) 0%, rgba(24, 144, 255, 0) 70%);
+      border-radius: 50%;
+      z-index: 0;
+    }
+    .section-title {
+      text-align: center;
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #222;
+      position: relative;
+    }
+    .section-subtitle {
+      text-align: center;
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 60px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      position: relative;
+      z-index: 1;
+    }
+    .feature-card {
+      background-color: #fff;
+      border-radius: 12px;
+      padding: 40px 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      transition: all 0.4s ease;
+      border: 1px solid rgba(0,0,0,0.03);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(90deg, #1890ff, #40a9ff);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+    .feature-icon {
+      width: 70px;
+      height: 70px;
+      background-color: rgba(24, 144, 255, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 25px;
+      transition: all 0.4s ease;
+    }
+    .feature-card:hover .feature-icon {
+      background-color: rgba(24, 144, 255, 0.2);
+      transform: scale(1.1);
+    }
+    .feature-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    .feature-description {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+    .feature-link {
+      display: inline-block;
+      color: #1890ff;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    .feature-link:hover {
+      color: #40a9ff;
+      transform: translateX(5px);
+    }
+  </style>
+</head>
+<body>
+  <!-- 导航栏 -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <div class="logo">
+        <div class="logo-text">量化交易平台</div>
+      </div>
+      <nav class="nav-links">
+        <a href="#" class="nav-link active">首页</a>
+        <a href="#features" class="nav-link">产品特点</a>
+        <a href="#strategies" class="nav-link">策略展示</a>
+        <a href="#pricing" class="nav-link">套餐价格</a>
+        <a href="#" class="nav-link">帮助文档</a>
+      </nav>
+      <div class="auth-buttons">
+        <button id="loginBtn" class="login-btn">登录</button>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    // 为登录按钮添加点击事件监听，显示登录模态框
+    document.getElementById('loginBtn').addEventListener('click', function() {
+      if (window.showLoginModal) {
+        window.showLoginModal();
+      }
+    });
+  </script>
+
+  <!-- 英雄区域 -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">专业的量化交易解决方案</h1>
+        <p class="hero-subtitle">提供全面的量化交易工具，从策略开发、回测到自动交易，助您在金融市场中获取稳定收益</p>
+        <div class="hero-buttons">
+          <a href="/login" class="hero-btn hero-btn-primary">立即开始</a>
+          <a href="#features" class="hero-btn hero-btn-secondary">查看演示</a>
+        </div>
+        <div class="hero-image">
+          <svg width="100%" height="400" viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+            <!-- 平台界面模拟图 -->
+            <rect x="50" y="50" width="1100" height="500" rx="10" fill="#fff" />
+            
+            <!-- 顶部导航栏 -->
+            <rect x="50" y="50" width="1100" height="60" rx="10" fill="#001529" />
+            <text x="100" y="85" fill="#fff" font-size="20" font-weight="bold">量化交易平台</text>
+            <circle cx="1100" cy="80" r="15" fill="#1890ff" />
+            
+            <!-- 左侧菜单 -->
+            <rect x="50" y="110" width="200" height="440" fill="#f5f7fa" />
+            <rect x="70" y="140" width="160" height="40" rx="5" fill="#e6f7ff" />
+            <text x="100" y="165" fill="#1890ff" font-size="14">仪表盘</text>
+            <rect x="70" y="190" width="160" height="40" rx="5" fill="transparent" />
+            <text x="100" y="215" fill="#333" font-size="14">策略管理</text>
+            <rect x="70" y="240" width="160" height="40" rx="5" fill="transparent" />
+            <text x="100" y="265" fill="#333" font-size="14">回测分析</text>
+            <rect x="70" y="290" width="160" height="40" rx="5" fill="transparent" />
+            <text x="100" y="315" fill="#333" font-size="14">实盘交易</text>
+            <rect x="70" y="340" width="160" height="40" rx="5" fill="transparent" />
+            <text x="100" y="365" fill="#333" font-size="14">数据中心</text>
+            
+            <!-- 主内容区 -->
+            <rect x="270" y="130" width="860" height="100" rx="5" fill="#fff" stroke="#eee" />
+            <rect x="290" y="150" width="250" height="60" rx="5" fill="#f0f5ff" />
+            <text x="310" y="180" fill="#333" font-size="16" font-weight="bold">账户总资产</text>
+            <text x="310" y="200" fill="#1890ff" font-size="20" font-weight="bold">¥1,234,567.89</text>
+            
+            <rect x="560" y="150" width="250" height="60" rx="5" fill="#f6ffed" />
+            <text x="580" y="180" fill="#333" font-size="16" font-weight="bold">今日收益</text>
+            <text x="580" y="200" fill="#52c41a" font-size="20" font-weight="bold">+¥12,345.67</text>
+            
+            <rect x="830" y="150" width="250" height="60" rx="5" fill="#fff7e6" />
+            <text x="850" y="180" fill="#333" font-size="16" font-weight="bold">持仓市值</text>
+            <text x="850" y="200" fill="#fa8c16" font-size="20" font-weight="bold">¥987,654.32</text>
+            
+            <!-- 图表区域 -->
+            <rect x="270" y="250" width="550" height="280" rx="5" fill="#fff" stroke="#eee" />
+            <text x="290" y="280" fill="#333" font-size="16" font-weight="bold">资产走势</text>
+            
+            <!-- 简化的折线图 -->
+            <polyline points="290,450 350,400 410,420 470,380 530,350 590,370 650,320 710,300 770,330" 
+                    stroke="#1890ff" stroke-width="3" fill="none" />
+            <path d="M290,450 L350,400 L410,420 L470,380 L530,350 L590,370 L650,320 L710,300 L770,330 L770,450 L290,450" 
+                  fill="rgba(24,144,255,0.1)" />
+            
+            <!-- 持仓列表 -->
+            <rect x="840" y="250" width="280" height="280" rx="5" fill="#fff" stroke="#eee" />
+            <text x="860" y="280" fill="#333" font-size="16" font-weight="bold">持仓概览</text>
+            
+            <rect x="860" y="300" width="240" height="1" fill="#f0f0f0" />
+            <text x="860" y="330" fill="#666" font-size="14">贵州茅台</text>
+            <text x="1040" y="330" fill="#52c41a" font-size="14">+2.34%</text>
+            
+            <rect x="860" y="350" width="240" height="1" fill="#f0f0f0" />
+            <text x="860" y="380" fill="#666" font-size="14">腾讯控股</text>
+            <text x="1040" y="380" fill="#f5222d" font-size="14">-1.05%</text>
+            
+            <rect x="860" y="400" width="240" height="1" fill="#f0f0f0" />
+            <text x="860" y="430" fill="#666" font-size="14">阿里巴巴</text>
+            <text x="1040" y="430" fill="#52c41a" font-size="14">+0.87%</text>
+            
+            <rect x="860" y="450" width="240" height="1" fill="#f0f0f0" />
+            <text x="860" y="480" fill="#666" font-size="14">中国平安</text>
+            <text x="1040" y="480" fill="#52c41a" font-size="14">+1.23%</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 特点区域 -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">产品特点</h2>
+      <p class="section-subtitle">专业的量化交易平台，为您提供全方位的量化投资解决方案</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>📊</i>
+          </div>
+          <h3 class="feature-title">丰富的数据源</h3>
+          <p class="feature-description">接入多家金融数据提供商，覆盖股票、期货、外汇等多种金融产品，提供实时和历史行情数据。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>🔍</i>
+          </div>
+          <h3 class="feature-title">强大的回测系统</h3>
+          <p class="feature-description">高性能回测引擎，支持多种回测模式，精确模拟交易成本，提供详细的回测报告和绩效分析。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>🤖</i>
+          </div>
+          <h3 class="feature-title">自动化交易</h3>
+          <p class="feature-description">支持策略自动执行，接入多家券商交易接口，实现全自动化交易，无需人工干预。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>📝</i>
+          </div>
+          <h3 class="feature-title">策略开发工具</h3>
+          <p class="feature-description">提供Python编程环境，内置常用技术指标和分析工具，支持自定义函数和模块导入。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>📈</i>
+          </div>
+          <h3 class="feature-title">风险管理</h3>
+          <p class="feature-description">内置风险控制模块，支持止损止盈、仓位管理、风险度量等功能，保障交易安全。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i>🔐</i>
+          </div>
+          <h3 class="feature-title">安全可靠</h3>
+          <p class="feature-description">采用银行级安全措施，数据传输加密，多重身份验证，确保账户和资金安全。</p>
+          <a href="#" class="feature-link">了解更多 →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 策略展示区域 -->
+  <section class="strategies" id="strategies">
+    <div class="container">
+      <h2 class="section-title">热门量化策略</h2>
+      <div class="strategy-grid">
+        <div class="strategy-card">
+          <div class="strategy-header">
+            <h3 class="strategy-title">多因子选股策略</h3>
+            <span class="strategy-tag">股票</span>
+          </div>
+          <div class="strategy-stats">
+            <div class="stat-item">
+              <div class="stat-value">28.6%</div>
+              <div class="stat-label">年化收益</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">1.85</div>
+              <div class="stat-label">夏普比率</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">12.4%</div>
+              <div class="stat-label">最大回撤</div>
+            </div>
+          </div>
+          <p class="strategy-description">基于价值、动量、质量等多个因子的选股策略，通过多因子综合评分选择优质股票构建投资组合。</p>
+          <button class="strategy-btn">查看详情</button>
+        </div>
+        <div class="strategy-card">
+          <div class="strategy-header">
+            <h3 class="strategy-title">趋势跟踪策略</h3>
+            <span class="strategy-tag">期货</span>
+          </div>
+          <div class="strategy-stats">
+            <div class="stat-item">
+              <div class="stat-value">32.1%</div>
+              <div class="stat-label">年化收益</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">1.62</div>
+              <div class="stat-label">夏普比率</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">18.7%</div>
+              <div class="stat-label">最大回撤</div>
+            </div>
+          </div>
+          <p class="strategy-description">基于技术指标识别市场趋势，在趋势确立后入场，趋势减弱时离场，适用于波动较大的期货市场。</p>
+          <button class="strategy-btn">查看详情</button>
+        </div>
+        <div class="strategy-card">
+          <div class="strategy-header">
+            <h3 class="strategy-title">统计套利策略</h3>
+            <span class="strategy-tag">股票</span>
+          </div>
+          <div class="strategy-stats">
+            <div class="stat-item">
+              <div class="stat-value">18.9%</div>
+              <div class="stat-label">年化收益</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">2.34</div>
+              <div class="stat-label">夏普比率</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">7.2%</div>
+              <div class="stat-label">最大回撤</div>
+            </div>
+          </div>
+          <p class="strategy-description">利用配对交易方法，寻找相关性高的股票对，当价差偏离历史均值时进行交易，市场中性策略。</p>
+          <button class="strategy-btn">查看详情</button>
+        </div>
+      </div>
+      <div class="more-strategies">
+        <a href="#" class="more-link">查看更多策略 <span class="arrow">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    /* 策略展示区域样式 */
+    .strategies {
+      padding: 80px 0;
+      background-color: #f5f7fa;
+    }
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+    }
+    .strategy-card {
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .strategy-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .strategy-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .strategy-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #222;
+    }
+    .strategy-tag {
+      background-color: rgba(24, 144, 255, 0.1);
+      color: #1890ff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .strategy-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #222;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .strategy-description {
+      color: #666;
+      line-height: 1.7;
+      margin-bottom: 20px;
+      height: 80px;
+    }
+    .strategy-btn {
+      background-color: transparent;
+      color: #1890ff;
+      border: 1px solid #1890ff;
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+    }
+    .strategy-btn:hover {
+      background-color: rgba(24, 144, 255, 0.1);
+    }
+    .more-strategies {
+      text-align: center;
+      margin-top: 40px;
+    }
+    .more-link {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1890ff;
+      display: inline-flex;
+      align-items: center;
+    }
+    .more-link:hover {
+      text-decoration: underline;
+    }
+    .arrow {
+      margin-left: 5px;
+      transition: transform 0.3s;
+    }
+    .more-link:hover .arrow {
+      transform: translateX(5px);
+    }
+  </style>
+
+
+
+  <style>
+
+
+    /* 响应式设计 */
+    @media (max-width: 1024px) {
+      .features-grid, .strategy-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 32px;
+      }
+      .hero-subtitle {
+        font-size: 16px;
+      }
+      .features-grid, .strategy-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="footer-logo">量化交易平台</div>
+          <p class="footer-description">专业的量化交易解决方案，助您在金融市场中获取稳定收益。</p>
+          <div class="social-links">
+            <a href="#" class="social-link">微博</a>
+            <a href="#" class="social-link">微信</a>
+            <a href="#" class="social-link">知乎</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-title">产品</h4>
+          <ul class="footer-links">
+            <li><a href="#">量化策略</a></li>
+            <li><a href="#">回测系统</a></li>
+            <li><a href="#">实盘交易</a></li>
+            <li><a href="#">数据服务</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-title">资源</h4>
+          <ul class="footer-links">
+            <li><a href="#">帮助文档</a></li>
+            <li><a href="#">API文档</a></li>
+            <li><a href="#">策略示例</a></li>
+            <li><a href="#">常见问题</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 class="footer-title">关于我们</h4>
+          <ul class="footer-links">
+            <li><a href="#">公司介绍</a></li>
+            <li><a href="#">联系我们</a></li>
+            <li><a href="#">加入我们</a></li>
+            <li><a href="#">用户协议</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="copyright">© 2023 量化交易平台 版权所有</div>
+        <div class="footer-bottom-links">
+          <a href="#">隐私政策</a>
+          <a href="#">服务条款</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <style>
+    /* 页脚样式 */
+    .footer {
+      background-color: #001529;
+      color: #fff;
+      padding: 60px 0 30px;
+      margin-top: 80px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    .footer-logo {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .footer-description {
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 20px;
+      line-height: 1.7;
+    }
+    .social-links {
+      display: flex;
+    }
+    .social-link {
+      color: rgba(255, 255, 255, 0.65);
+      margin-right: 15px;
+      transition: color 0.3s;
+    }
+    .social-link:hover {
+      color: #1890ff;
+    }
+    .footer-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    .footer-links {
+      list-style: none;
+    }
+    .footer-links li {
+      margin-bottom: 10px;
+    }
+    .footer-links a {
+      color: rgba(255, 255, 255, 0.65);
+      transition: color 0.3s;
+    }
+    .footer-links a:hover {
+      color: #1890ff;
+    }
+    .footer-bottom {
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copyright {
+      color: rgba(255, 255, 255, 0.45);
+    }
+    .footer-bottom-links a {
+      color: rgba(255, 255, 255, 0.45);
+      margin-left: 20px;
+      transition: color 0.3s;
+    }
+    .footer-bottom-links a:hover {
+      color: #1890ff;
+    }
+
+    @media (max-width: 1024px) {
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 768px) {
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+      .footer-bottom {
+        flex-direction: column;
+      }
+      .footer-bottom-links {
+        margin-top: 15px;
+      }
+      .footer-bottom-links a {
+        margin: 0 10px;
+      }
+    }
+  </style>
+  
+  <!-- React application root element -->
+  <div id="root"></div>
+</body>
+</html>
