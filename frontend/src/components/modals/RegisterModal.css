@@ -1,0 +1,128 @@
+.register-modal .ant-modal-content {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.register-modal .ant-modal-header {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  color: white;
+  padding: 24px;
+  border-bottom: none;
+}
+
+.register-modal .ant-modal-title {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.register-modal .ant-modal-body {
+  padding: 32px 24px;
+  background-color: #fafafa;
+}
+
+.register-modal .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.register-modal .ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+}
+
+.register-form .ant-input,
+.register-form .ant-input-password {
+  border-radius: 6px;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s;
+  height: 40px;
+}
+
+.register-form .ant-input:hover,
+.register-form .ant-input-password:hover {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.register-form .ant-input:focus,
+.register-form .ant-input-password:focus {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.register-submit-button {
+  height: 44px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.register-submit-button:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+.register-submit-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.register-submit-button[disabled] {
+  background: #d9d9d9 !important;
+  color: rgba(0, 0, 0, 0.25) !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.register-form-footer {
+  margin-top: 16px;
+  text-align: center;
+  color: #666;
+}
+
+.register-form-footer a {
+  color: #1890ff;
+  margin-left: 4px;
+}
+
+.register-form-footer a:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+.register-modal .ant-modal-mask {
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .register-modal .ant-modal-content {
+    width: 90vw;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  .register-modal .ant-modal-body {
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-modal .ant-modal-content {
+    width: 95vw;
+    border-radius: 8px;
+  }
+  
+  .register-modal .ant-modal-body {
+    padding: 20px 16px;
+  }
+}

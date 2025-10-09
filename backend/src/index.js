@@ -66,17 +66,10 @@ function setupRoutesAndStartServer() {
   const strategyRoutes = require('./routes/strategies');
   const adminRoutes = require('./routes/admin');
   
-  // 导入中间件
-  const auth = require('./middleware/auth');
-  
   // 路由
   app.use('/api/auth', authRoutes);
   app.use('/api/strategies', strategyRoutes);
-  app.use('/api/admin', auth, adminRoutes);
-  
-  // 导入并使用模拟路由
-  const mockRoutes = require('./routes/mockRoutes');
-  app.use('/api', mockRoutes);
+  app.use('/api/admin', adminRoutes);
   
   // 根路由
   app.get('/', (req, res) => {

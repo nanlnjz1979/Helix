@@ -71,12 +71,31 @@ function App() {
     }
   }, []);
 
+  // 检查是否需要显示注册模态框
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('showRegister') === 'true') {
+      setTimeout(() => {
+        if (window.showRegisterModal) {
+          window.showRegisterModal();
+        }
+      }, 100);
+    }
+  }, []);
+
   return (
     <div className="App" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
       <Routes>
         {/* 无需认证的路由 */}
         <Route path="/login" element={<Navigate to="/?showLogin=true" replace />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={
+          <React.Fragment>
+            <div style={{ display: 'none' }}>
+              <Register />
+            </div>
+            <Navigate to="/?showRegister=true" replace />
+          </React.Fragment>
+        } />
         
         {/* 管理员路由 - 使用精确匹配 */}
         <Route path="/admin" element={

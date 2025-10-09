@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
     endpoints: [
       '/api/admin/users - 获取所有用户列表',
       '/api/admin/users/:id - 获取单个用户详情',
-      '/api/admin/users/:id/role - 更新用户角色'
+      '/api/admin/users/:id - 更新用户信息'
     ],
     user: req.user
   });
@@ -31,36 +31,11 @@ router.get('/', (req, res) => {
 // 用户管理路由
 router.get('/users', adminController.getAllUsers);
 router.get('/users/:id', adminController.getUserById);
-router.put('/users/:id/role', adminController.updateUserRole);
-router.put('/users/:id/status', adminController.updateUserStatus);
+router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
 
 // 策略管理路由
 router.get('/strategies', adminController.getAllStrategies);
-router.put('/strategies/:id/review', adminController.reviewStrategy);
-
-// 统计和分析路由
-router.get('/stats', adminController.getStats);
-router.get('/analytics', adminController.getAnalytics);
-
-// 尝试导入模型，如果失败则使用模拟数据
-let User, Strategy;
-try {
-  User = require('../models/User');
-  Strategy = require('../models/Strategy');
-} catch (error) {
-  console.log('使用模拟数据模式');
-  
-  // 使用模拟版控制器
-  router.get('/users', adminController.mock.getAllUsers);
-  router.get('/users/:id', adminController.mock.getUserById);
-  router.put('/users/:id/role', adminController.mock.updateUserRole);
-  router.put('/users/:id/status', adminController.mock.updateUserStatus);
-  router.delete('/users/:id', adminController.mock.deleteUser);
-  router.get('/strategies', adminController.mock.getAllStrategies);
-  router.put('/strategies/:id/review', adminController.mock.reviewStrategy);
-  router.get('/stats', adminController.mock.getStats);
-  router.get('/analytics', adminController.mock.getAnalytics);
-}
+router.put('/strategies/:id/status', adminController.updateStrategyStatus);
 
 module.exports = router;

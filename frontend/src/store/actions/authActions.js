@@ -134,34 +134,57 @@ export const logout = () => {
 // 登录
 export const login = (username, password) => {
   return async (dispatch) => {
+    console.log('[Auth Action] Starting login process for user:', username);
     dispatch(loginRequest());
     
     try {
+      console.log('[Auth Action] Before API call - username:', username);
+      console.log('[Auth Action] Current localStorage items:');
+      console.log(' - token:', localStorage.getItem('token') ? 'exists' : 'not exists');
+      console.log(' - user:', localStorage.getItem('user') ? 'exists' : 'not exists');
+      
       // 实际调用后端API进行登录验证
       const response = await authAPI.login(username, password);
+      
+      console.log('[Auth Action] API call succeeded, response received');
+      console.log('[Auth Action] Response data:', response);
       
       // 保存到localStorage
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
       
+      console.log('[Auth Action] Data saved to localStorage');
+      
       // 分发登录成功action
+      console.log('[Auth Action] Dispatching loginSuccess action');
       dispatch(loginSuccess(response.user, response.token));
       
-      // 显示成功消息
-      message.success('登录成功');
+      // 移除登录成功消息，避免与LoginModal中的重复显示
+      // message.success('登录成功');
+      
     } catch (error) {
-      console.error('登录失败:', error);
+      console.error('[Auth Action] Login failed:', error);
+      console.error('[Auth Action] Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        isAxiosError: error.isAxiosError
+      });
+      
       // 分发登录失败action
       dispatch(loginFailure(error.message || '用户名或密码错误'));
       
       // 显示错误消息
       message.error(error.message || '用户名或密码错误');
+      
+      // 确保抛出错误，让调用者知道登录失败
+      throw error;
     }
   };
 };
 
 // 注册
-export const register = (username, email, password, fullName, phone) => {
+export const register = (username, email, fullName, phone, password) => {
   return async (dispatch) => {
     dispatch(registerRequest());
     

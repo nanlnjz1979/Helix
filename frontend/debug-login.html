@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: #ff4d4f;
+        }
+        .success {
+            color: #52c41a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>登录调试工具</h1>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+            </div>
+            <button type="submit">登录</button>
+        </form>
+        
+        <div class="result">
+            <h3>调试日志:</h3>
+            <pre id="log"></pre>
+        </div>
+    </div>
+
+    <script>
+        // 日志记录函数
+        function log(message, isError = false) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            
+            if (isError) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = logEntry;
+                logElement.appendChild(errorDiv);
+            } else {
+                logElement.textContent += logEntry;
+            }
+            
+            // 自动滚动到底部
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // 同时打印到控制台
+            if (isError) {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+        
+        // 简化版的axios实现
+        function axios(config) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                // 设置请求方法和URL
+                xhr.open(config.method || 'GET', config.url);
+                
+                // 设置请求头
+                if (config.headers) {
+                    Object.keys(config.headers).forEach(header => {
+                        xhr.setRequestHeader(header, config.headers[header]);
+                    });
+                }
+                
+                // 设置响应类型
+                xhr.responseType = 'text'; // 先以文本形式获取响应
+                
+                // 设置超时
+                if (config.timeout) {
+                    xhr.timeout = config.timeout;
+                }
+                
+                // 处理响应
+                xhr.onload = function() {
+                    const response = {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        headers: {},
+                        data: xhr.responseText
+                    };
+                    
+                    // 解析响应头
+                    const headers = xhr.getAllResponseHeaders().split('\n');
+                    headers.forEach(header => {
+                        const parts = header.split(': ');
+                        if (parts.length === 2) {
+                            response.headers[parts[0].toLowerCase()] = parts[1];
+                        }
+                    });
+                    
+                    // 检查content-type
+                    const contentType = response.headers['content-type'] || '';
+                    
+                    // 尝试解析JSON
+                    if (contentType.includes('application/json')) {
+                        try {
+                            response.data = JSON.parse(xhr.responseText);
+                        } catch (e) {
+                            log(`无法解析响应为JSON: ${e.message}`, true);
+                            log(`原始响应内容: ${xhr.responseText.substring(0, 500)}`, true);
+                            reject(new Error(`JSON解析错误: ${e.message}`));
+                            return;
+                        }
+                    } else if (contentType.includes('text/html')) {
+                        log(`警告: 收到HTML响应而不是JSON!`, true);
+                        log(`HTML内容预览: ${xhr.responseText.substring(0, 500)}`, true);
+                        reject(new Error(`无效的响应格式: 收到HTML内容`));
+                        return;
+                    }
+                    
+                    if (response.status >= 200 && response.status < 300) {
+                        resolve(response);
+                    } else {
+                        reject({
+                            response: response,
+                            message: `请求失败: ${response.status} ${response.statusText}`
+                        });
+                    }
+                };
+                
+                // 处理错误
+                xhr.onerror = function() {
+                    reject(new Error('网络错误'));
+                };
+                
+                // 处理超时
+                xhr.ontimeout = function() {
+                    reject(new Error('请求超时'));
+                };
+                
+                // 发送请求
+                xhr.send(config.data ? JSON.stringify(config.data) : null);
+            });
+        }
+        
+        // 登录函数
+        async function login(username, password) {
+            try {
+                log(`开始登录流程 - 用户名: ${username}`);
+                
+                // 构建请求配置
+                const config = {
+                    method: 'POST',
+                    url: 'http://localhost:5000/api/auth/login',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    data: {
+                        username: username,
+                        password: password
+                    },
+                    timeout: 10000
+                };
+                
+                log(`发送登录请求到: ${config.url}`);
+                log(`请求数据: ${JSON.stringify(config.data)}`);
+                
+                // 发送请求
+                const response = await axios(config);
+                
+                log(`登录成功! 状态码: ${response.status}`);
+                log(`响应头: ${JSON.stringify(response.headers)}`);
+                log(`响应数据: ${JSON.stringify(response.data)}`);
+                
+                // 显示成功消息
+                log('登录成功! 这是一个有效的JSON响应。', false);
+                
+                return response.data;
+            } catch (error) {
+                log(`登录失败: ${error.message}`, true);
+                
+                if (error.response) {
+                    log(`错误状态码: ${error.response.status}`, true);
+                    log(`错误响应头: ${JSON.stringify(error.response.headers)}`, true);
+                    log(`错误响应数据: ${JSON.stringify(error.response.data)}`, true);
+                }
+                
+                if (error.message.includes('Unexpected token')) {
+                    log('检测到\'Unexpected token\'错误! 这通常表示尝试解析非JSON内容。', true);
+                }
+                
+                throw error;
+            }
+        }
+        
+        // 监听表单提交
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // 清空日志
+            document.getElementById('log').innerHTML = '';
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                await login(username, password);
+            } catch (error) {
+                log('登录过程中发生错误，请查看上面的详细日志。', true);
+            }
+        });
+        
+        log('调试页面加载完成。请输入用户名和密码，然后点击登录按钮开始测试。');
+    </script>
+</body>
+</html>

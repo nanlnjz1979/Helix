@@ -15,18 +15,22 @@ const LoginModal = ({ visible, onCancel }) => {
 
   // 登录成功后处理
   React.useEffect(() => {
+    // 确保只在登录状态从false变为true时显示一次消息
     if (isAuthenticated && user && !messageShown) {
-      message.success('登录成功');
-      setMessageShown(true); // 标记消息已显示
-      onCancel(); // 关闭模态框
-      form.resetFields(); // 重置表单
-      
-      // 登录成功后在前端应用内部导航到相应的页面（根据用户角色）
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      // 使用setTimeout稍微延迟一下，确保状态稳定后再显示消息
+      setTimeout(() => {
+        message.success('登录成功');
+        setMessageShown(true); // 标记消息已显示
+        onCancel(); // 关闭模态框
+        form.resetFields(); // 重置表单
+        
+        // 登录成功后在前端应用内部导航到相应的页面（根据用户角色）
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      }, 100);
     }
   }, [isAuthenticated, user, navigate, onCancel, form, messageShown]);
 
@@ -49,6 +53,18 @@ const LoginModal = ({ visible, onCancel }) => {
     // 重置表单
     form.resetFields();
     onCancel();
+  };
+
+  // 测试函数：直接显示注册模态框
+  const testShowRegisterModal = () => {
+    console.log('testShowRegisterModal called');
+    onCancel();
+    if (window.showRegisterModal) {
+      console.log('window.showRegisterModal exists, calling it...');
+      window.showRegisterModal();
+    } else {
+      console.error('window.showRegisterModal does not exist');
+    }
   };
 
   return (
@@ -115,9 +131,21 @@ const LoginModal = ({ visible, onCancel }) => {
           <div style={{ marginTop: 16, textAlign: 'center' }}>
             还没有账号? <a href="/register" onClick={(e) => {
               e.preventDefault();
+              console.log('Register link clicked');
               onCancel();
-              navigate('/register');
+              if (window.showRegisterModal) {
+                console.log('Calling window.showRegisterModal()');
+                window.showRegisterModal();
+              } else {
+                console.error('window.showRegisterModal not available');
+              }
             }}>立即注册</a>
+          </div>
+          {/* 添加测试按钮 */}
+          <div style={{ marginTop: 8, textAlign: 'center' }}>
+            <Button type="link" onClick={testShowRegisterModal}>
+              测试注册模态框
+            </Button>
           </div>
         </Form.Item>
       </Form>
