@@ -70,6 +70,7 @@ function initMockStrategies() {
       profitRate: 0.12,
       totalInvest: 50000,
       userId: '2',
+      approved: true,
       createdAt: new Date('2023-06-01').toISOString()
     },
     {
@@ -80,6 +81,7 @@ function initMockStrategies() {
       profitRate: 0.08,
       totalInvest: 100000,
       userId: '2',
+      approved: true,
       createdAt: new Date('2023-06-15').toISOString()
     },
     {
@@ -90,7 +92,30 @@ function initMockStrategies() {
       profitRate: 0,
       totalInvest: 0,
       userId: '3',
+      approved: false,
       createdAt: new Date('2023-07-01').toISOString()
+    },
+    {
+      _id: '4',
+      name: '统计套利策略',
+      description: '基于统计模型的套利策略',
+      status: 'pending',
+      profitRate: 0,
+      totalInvest: 0,
+      userId: '4',
+      approved: false,
+      createdAt: new Date('2023-07-10').toISOString()
+    },
+    {
+      _id: '5',
+      name: '波动率交易策略',
+      description: '基于市场波动率变化的交易策略',
+      status: 'active',
+      profitRate: 0.15,
+      totalInvest: 75000,
+      userId: '5',
+      approved: true,
+      createdAt: new Date('2023-06-20').toISOString()
     }
   ];
 }
@@ -527,6 +552,228 @@ exports.updateStrategyStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('更新策略状态错误:', error);
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+};
+
+// 获取分析数据
+exports.getAnalyticsData = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // 尝试加载真实模型
+    const hasRealModels = await tryLoadRealModels();
+    isMockMode = !hasRealModels;
+
+    // 构建查询条件
+    const query = {};
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    // 过滤掉admin用户
+    query.role = 'user';
+
+    let userGrowthData = [];
+    let strategyActivityData = [];
+    let userSegmentData = [];
+    let keyMetrics = {};
+
+    if (isMockMode) {
+      // 模拟模式 - 生成更丰富的模拟数据以模拟真实场景
+      const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
+      
+      // 用户增长数据
+      userGrowthData = months.map((month, index) => ({
+        month: month,
+        users: Math.floor(10 * Math.pow(1.5, index))
+      }));
+      
+      // 策略活动数据
+      strategyActivityData = months.map((month, index) => ({
+        month: month,
+        created: Math.floor(5 * Math.pow(1.4, index)),
+        backtested: Math.floor(3 * Math.pow(1.4, index)),
+        deployed: Math.floor(2 * Math.pow(1.4, index))
+      }));
+      
+      // 用户分段数据
+      userSegmentData = [
+        { name: '高频交易者', value: 30 },
+        { name: '长期投资者', value: 45 },
+        { name: '策略开发者', value: 15 },
+        { name: '初学者', value: 10 }
+      ];
+      
+      // 关键指标
+      keyMetrics = {
+        totalRevenue: 150000,
+        avgUserValue: 3000,
+        conversionRate: 15,
+        retentionRate: 78
+      };
+    } else {
+      // 真实模式 - 从数据库获取真实数据
+      // 1. 获取用户增长数据（按月份分组）
+      const monthlyUserStats = await User.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+              year: { $year: '$createdAt' }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]);
+
+      // 格式化用户增长数据
+      userGrowthData = monthlyUserStats.map(item => ({
+        month: `${item._id.month}月`,
+        users: item.count
+      }));
+
+      // 2. 获取策略活动数据（按月份分组）
+      const monthlyStrategyStats = await Strategy.aggregate([
+        {
+          $group: {
+            _id: {
+              month: { $month: '$createdAt' },
+              year: { $year: '$createdAt' }
+            },
+            created: { $sum: 1 },
+            backtested: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+            deployed: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]);
+
+      // 格式化策略活动数据
+      strategyActivityData = monthlyStrategyStats.map(item => ({
+        month: `${item._id.month}月`,
+        created: item.created,
+        backtested: item.backtested,
+        deployed: item.deployed
+      }));
+
+      // 3. 获取用户分段数据（简单的模拟，实际项目中可以根据真实的用户行为进行分段）
+      userSegmentData = [
+        { name: '高频交易者', value: 30 },
+        { name: '长期投资者', value: 45 },
+        { name: '策略开发者', value: 15 },
+        { name: '初学者', value: 10 }
+      ];
+
+      // 4. 计算关键指标
+      const totalUsers = await User.countDocuments({ role: 'user' });
+      const activeUsers = await User.countDocuments({ role: 'user', active: true });
+      const totalStrategies = await Strategy.countDocuments();
+      const activeStrategies = await Strategy.countDocuments({ status: 'active' });
+      
+      // 这里简单计算一些指标，实际项目中可以根据业务需求进行更复杂的计算
+      keyMetrics = {
+        totalRevenue: 150000, // 示例数据
+        avgUserValue: totalUsers > 0 ? Math.floor(150000 / totalUsers) : 0,
+        conversionRate: totalUsers > 0 ? Math.floor((activeStrategies / totalUsers) * 100) : 0,
+        retentionRate: totalUsers > 0 ? Math.floor((activeUsers / totalUsers) * 100) : 0
+      };
+    }
+
+    res.json({
+      userGrowth: userGrowthData,
+      strategyActivity: strategyActivityData,
+      userSegment: userSegmentData,
+      keyMetrics: keyMetrics,
+      mode: isMockMode ? 'mock' : 'real'
+    });
+  } catch (error) {
+    console.error('获取分析数据错误:', error);
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+};
+
+// 审核策略
+exports.reviewStrategy = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approved, comment } = req.body;
+    
+    // 尝试加载真实模型
+    const hasRealModels = await tryLoadRealModels();
+    isMockMode = !hasRealModels;
+
+    let updatedStrategy;
+    if (isMockMode) {
+      // 模拟模式
+      const strategyIndex = mockStrategies.findIndex(strategy => strategy._id === id);
+      if (strategyIndex === -1) {
+        return res.status(404).json({ message: '策略不存在' });
+      }
+      
+      mockStrategies[strategyIndex].approved = approved;
+      mockStrategies[strategyIndex].reviewComment = comment;
+      updatedStrategy = mockStrategies[strategyIndex];
+    } else {
+      // 真实模式
+      updatedStrategy = await Strategy.findByIdAndUpdate(
+        id,
+        { approved, reviewComment: comment },
+        { new: true }
+      );
+      
+      if (!updatedStrategy) {
+        return res.status(404).json({ message: '策略不存在' });
+      }
+    }
+
+    res.json({
+      message: '策略审核成功',
+      strategy: updatedStrategy
+    });
+  } catch (error) {
+    console.error('审核策略错误:', error);
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+};
+
+// 删除策略
+exports.deleteStrategy = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 尝试加载真实模型
+    const hasRealModels = await tryLoadRealModels();
+    isMockMode = !hasRealModels;
+
+    let deletedStrategy;
+    if (isMockMode) {
+      // 模拟模式
+      const strategyIndex = mockStrategies.findIndex(strategy => strategy._id === id);
+      if (strategyIndex === -1) {
+        return res.status(404).json({ message: '策略不存在' });
+      }
+      
+      deletedStrategy = mockStrategies.splice(strategyIndex, 1)[0];
+    } else {
+      // 真实模式
+      deletedStrategy = await Strategy.findByIdAndDelete(id);
+      
+      if (!deletedStrategy) {
+        return res.status(404).json({ message: '策略不存在' });
+      }
+    }
+
+    res.json({
+      message: '策略删除成功',
+      strategy: deletedStrategy
+    });
+  } catch (error) {
+    console.error('删除策略错误:', error);
     res.status(500).json({ message: '服务器错误', error: error.message });
   }
 };

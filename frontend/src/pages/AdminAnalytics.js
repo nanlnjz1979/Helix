@@ -32,13 +32,13 @@ const AdminAnalytics = () => {
         });
 
         // 由于可能没有实际API，使用模拟数据
-        if (!response || Object.keys(response).length === 0) {
+        if (!response.data || Object.keys(response.data).length === 0) {
           setMockData();
         } else {
-          setUserGrowthData(response.userGrowth || []);
-          setStrategyActivityData(response.strategyActivity || []);
-          setUserSegmentData(response.userSegment || []);
-          setKeyMetrics(response.keyMetrics || {});
+          setUserGrowthData(response.data.userGrowth || []);
+          setStrategyActivityData(response.data.strategyActivity || []);
+          setUserSegmentData(response.data.userSegment || []);
+          setKeyMetrics(response.data.keyMetrics || {});
         }
       } catch (error) {
         console.error('获取分析数据失败:', error);

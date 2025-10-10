@@ -37,5 +37,10 @@ router.delete('/users/:id', adminController.deleteUser);
 // 策略管理路由
 router.get('/strategies', adminController.getAllStrategies);
 router.put('/strategies/:id/status', adminController.updateStrategyStatus);
+router.put('/strategies/:id/review', adminController.reviewStrategy);
+router.delete('/strategies/:id', adminController.deleteStrategy);
+
+// 分析数据路由
+router.get('/analytics', adminController.getAnalyticsData);
 
 module.exports = router;

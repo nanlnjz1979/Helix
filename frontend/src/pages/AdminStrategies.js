@@ -25,7 +25,7 @@ const AdminStrategies = () => {
       setLoading(true);
       const response = await api.get('/admin/strategies');
       
-      let filteredStrategies = response;
+      let filteredStrategies = response.data.strategies || [];
       if (filterStatus !== 'all') {
         filteredStrategies = filteredStrategies.filter(
           strategy => strategy.approved === (filterStatus === 'approved')

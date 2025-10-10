@@ -26,7 +26,7 @@ const AdminDashboard = () => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/admin/stats');
-        setStats(response);
+        setStats(response.data);
       } catch (error) {
         console.error('获取统计数据失败:', error);
         // 使用模拟数据
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
       try {
         const response = await api.get('/admin/users');
         // 按创建时间排序，取最近5个用户
-        const sortedUsers = response
+        const sortedUsers = response.data
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 5);
         setRecentUsers(sortedUsers);

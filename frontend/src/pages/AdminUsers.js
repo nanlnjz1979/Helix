@@ -47,18 +47,12 @@ const AdminUsers = () => {
       const response = await api.get('/admin/users', {
         params
       });
-      setUsers(response);
+      // 后端返回的是包含users数组的对象，需要正确提取
+      setUsers(response.data.users || []);
     } catch (error) {
       console.error('获取用户列表失败:', error);
       message.error('获取用户列表失败');
-      // 使用模拟数据
-      setUsers([
-        { _id: '1', username: 'admin', email: 'admin@example.com', role: 'admin', balance: 1000000, createdAt: new Date(Date.now() - 30*86400000).toISOString(), lastLogin: new Date(Date.now() - 86400000).toISOString(), status: 'active', tradingVolume: 5000000 },
-        { _id: '2', username: 'user1', email: 'user1@example.com', role: 'user', balance: 50000, createdAt: new Date(Date.now() - 20*86400000).toISOString(), lastLogin: new Date(Date.now() - 2*86400000).toISOString(), status: 'active', tradingVolume: 250000 },
-        { _id: '3', username: 'user2', email: 'user2@example.com', role: 'user', balance: 75000, createdAt: new Date(Date.now() - 15*86400000).toISOString(), lastLogin: new Date(Date.now() - 3*86400000).toISOString(), status: 'active', tradingVolume: 400000 },
-        { _id: '4', username: 'user3', email: 'user3@example.com', role: 'user', balance: 100000, createdAt: new Date(Date.now() - 10*86400000).toISOString(), lastLogin: new Date(Date.now() - 5*86400000).toISOString(), status: 'inactive', tradingVolume: 150000 },
-        { _id: '5', username: 'user4', email: 'user4@example.com', role: 'user', balance: 25000, createdAt: new Date(Date.now() - 5*86400000).toISOString(), lastLogin: new Date(Date.now() - 1*86400000).toISOString(), status: 'active', tradingVolume: 80000 }
-      ]);
+      setUsers([]); // 发生错误时设置为空数组
     } finally {
       setLoading(false);
     }
@@ -136,7 +130,8 @@ const AdminUsers = () => {
   // 处理用户状态切换
   const handleStatusChange = async (userId, status) => {
     try {
-      await api.put(`/admin/users/${userId}/status`, { active: status });
+      // 使用现有的updateUser路由来更新用户状态
+      await api.put(`/admin/users/${userId}`, { active: status });
       message.success(status ? '用户已启用' : '用户已禁用');
       fetchUsers();
     } catch (error) {
