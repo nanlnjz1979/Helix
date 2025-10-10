@@ -9,7 +9,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SettingOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  TagOutlined
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -60,12 +61,7 @@ const AdminLayout = ({ children }) => {
       label: '用户管理',
       onClick: () => navigate('/admin/users')
     },
-    {
-      key: 'strategies',
-      icon: <CodeOutlined />,
-      label: '策略管理',
-      onClick: () => navigate('/admin/strategies')
-    }
+    {      key: 'strategies',      icon: <CodeOutlined />,      label: '策略管理',      onClick: () => navigate('/admin/strategies')    },    {      key: 'categories',      icon: <TagOutlined />,      label: '策略类型管理',      onClick: () => navigate('/admin/categories')    }
   ];
   
   return (

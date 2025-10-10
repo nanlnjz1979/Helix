@@ -207,7 +207,8 @@ const Market = () => {
     };
   };
   
-  const selectedStockData = marketData.find(item => item.symbol === selectedStock) || {};
+  // 确保selectedStockData始终是一个对象，即使在marketData加载完成前
+  const selectedStockData = (marketData && marketData.find(item => item.symbol === selectedStock)) || {};
   
   return (
     <div>

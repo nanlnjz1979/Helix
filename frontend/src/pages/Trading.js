@@ -56,11 +56,16 @@ const Trading = () => {
       title: '收益',
       dataIndex: 'profit',
       key: 'profit',
-      render: (text) => (
-        <span style={{ color: text >= 0 ? '#52c41a' : '#f5222d' }}>
-          ${text} ({text >= 0 ? '+' : ''}{(text / 1000).toFixed(2)}%)
-        </span>
-      ),
+      render: (text) => {
+        // 确保text有值，如果没有则默认为0
+        const profitValue = text !== undefined ? text : 0;
+        const isPositive = profitValue >= 0;
+        return (
+          <span style={{ color: isPositive ? '#52c41a' : '#f5222d' }}>
+            ${profitValue} ({isPositive ? '+' : ''}{(profitValue / 1000).toFixed(2)}%)
+          </span>
+        );
+      },
     },
     {
       title: '操作',

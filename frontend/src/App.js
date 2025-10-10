@@ -18,6 +18,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminStrategies from './pages/AdminStrategies';
 import AdminAnalytics from './pages/AdminAnalytics';
+import AdminCategories from './pages/AdminCategories';
+import AdminCategoryDetails from './pages/AdminCategoryDetails';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
@@ -128,6 +130,20 @@ function App() {
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminAnalytics />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/categories" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminCategories />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/categories/:categoryId" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminCategoryDetails />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />

@@ -7,7 +7,7 @@ require('dotenv').config();
 
 // 初始化Express应用
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // 中间件
 app.use(cors());
@@ -65,11 +65,33 @@ function setupRoutesAndStartServer() {
   const authRoutes = require('./routes/auth');
   const strategyRoutes = require('./routes/strategies');
   const adminRoutes = require('./routes/admin');
+  const categoryRoutesModule = require('./routes/categoryRoutes');
+  const categoryController = require('./controllers/categoryController');
   
   // 路由
   app.use('/api/auth', authRoutes);
   app.use('/api/strategies', strategyRoutes);
   app.use('/api/admin', adminRoutes);
+  
+  // 只有当categoryRoutes存在时才挂载
+  if (categoryRoutesModule && categoryRoutesModule.router) {
+    app.use('/api/admin', categoryRoutesModule.router); // 将类别路由挂载到admin路由下
+    console.log('类别路由已成功挂载到/admin路径');
+  } else {
+    console.log('类别路由模块加载失败，无法挂载');
+  }
+  
+  // 初始化类别控制器，使用真实数据库模式
+  try {
+    if (categoryController.initialize) {
+      categoryController.initialize();
+      console.log('类别控制器初始化请求已发送 - 使用真实数据库模式');
+    } else {
+      console.log('类别控制器没有initialize方法');
+    }
+  } catch (error) {
+    console.error('初始化类别控制器时出错:', error.message);
+  }
   
   // 根路由
   app.get('/', (req, res) => {

@@ -45,15 +45,54 @@ const tradingReducer = (state = initialState, action) => {
     case 'START_TRADING':
       return {
         ...state,
-        isTrading: true,
-        activeStrategies: [...state.activeStrategies, action.payload]
+        isTrading: true
       };
     case 'STOP_TRADING':
       return {
         ...state,
-        isTrading: state.activeStrategies.length > 1,
+        isTrading: false
+      };
+    case 'ADD_ACTIVE_STRATEGY':
+      return {
+        ...state,
+        activeStrategies: [...state.activeStrategies, action.payload]
+      };
+    case 'REMOVE_ACTIVE_STRATEGY':
+      return {
+        ...state,
         activeStrategies: state.activeStrategies.filter(
           strategy => strategy.id !== action.payload
+        )
+      };
+    case 'START_STRATEGY':
+      return {
+        ...state,
+        activeStrategies: state.activeStrategies.map(strategy =>
+          strategy.id === action.payload
+            ? { ...strategy, status: '运行中' }
+            : strategy
+        )
+      };
+    case 'STOP_STRATEGY':
+      return {
+        ...state,
+        activeStrategies: state.activeStrategies.map(strategy =>
+          strategy.id === action.payload
+            ? { ...strategy, status: '已停止' }
+            : strategy
+        )
+      };
+    case 'UPDATE_STRATEGY_CAPITAL':
+      return {
+        ...state,
+        activeStrategies: state.activeStrategies.map(strategy =>
+          strategy.id === action.payload.id
+            ? {
+                ...strategy,
+                currentCapital: action.payload.capital,
+                profit: action.payload.capital - strategy.initialCapital
+              }
+            : strategy
         )
       };
     case 'ADD_TRADE':

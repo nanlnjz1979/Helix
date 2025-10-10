@@ -15,14 +15,22 @@ router.use((req, res, next) => {
   }
 });
 
-// 管理API根路由
+// 管理员API根路由
 router.get('/', (req, res) => {
   res.json({
     message: '管理员API',
     endpoints: [
       '/api/admin/users - 获取所有用户列表',
       '/api/admin/users/:id - 获取单个用户详情',
-      '/api/admin/users/:id - 更新用户信息'
+      '/api/admin/users/:id - 更新用户信息',
+      '/api/admin/categories - 分类管理',
+      '/api/admin/categories/tree - 分类树',
+      '/api/admin/categories/:id/strategies - 分类下的策略',
+      '/api/admin/strategies/:id/categories - 策略的分类',
+      '/api/admin/strategies/:id/category-logs - 策略分类变更日志',
+      '/api/admin/categories/stats - 分类统计',
+      '/api/admin/categories/distribution - 分类分布',
+      '/api/admin/categories/performance - 分类性能'
     ],
     user: req.user
   });
