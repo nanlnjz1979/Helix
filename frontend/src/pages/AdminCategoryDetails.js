@@ -60,6 +60,7 @@ const AdminCategoryDetails = () => {
   const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [editForm] = Form.useForm();
   const [performanceData, setPerformanceData] = useState({});
+  const [topLevelCategories, setTopLevelCategories] = useState([]);
 
   // 获取类别详情
   const fetchCategoryDetails = async () => {
@@ -267,15 +268,47 @@ const AdminCategoryDetails = () => {
     }
   };
 
+  // 获取所有顶级类别（parent==null）
+  const fetchTopLevelCategories = async () => {
+    try {
+      const allCategories = await categoryAPI.getAllCategories();
+      // 过滤出 parent==null 的顶级类别+
+
+
+      
+      const topCategories = allCategories.filter(cat => 
+        cat.parent === null && cat._id !== categoryId
+      );
+      setTopLevelCategories(topCategories);
+    } catch (error) {
+      console.error('获取顶级类别失败:', error);
+      message.error('加载父类别列表失败');
+    }
+  };
+
   // 打开编辑模态框
-  const showEditModal = () => {
+  const showEditModal = async () => {
     editForm.setFieldsValue({
       name: category.name,
       description: category.description,
       parent: category.parent?._id || undefined,
       tags: category.tags || []
     });
+    // 先设置模态框为打开状态
     setIsEditModalVisible(true);
+    // 然后加载顶级类别列表
+    try {
+      const allCategories = await categoryAPI.getAllCategories();
+      // 过滤出 parent==null 的顶级类别，并排除当前类别
+      const topCategories = allCategories.filter(cat => 
+        cat.parent === null && cat._id !== categoryId
+      );
+      console.log('加载的顶级类别:', topCategories);
+      setTopLevelCategories(topCategories);
+    } catch (error) {
+      console.error('获取顶级类别失败:', error);
+      message.error('加载父类别列表失败');
+    }
   };
 
   // 打开关联策略模态框
@@ -633,7 +666,11 @@ const AdminCategoryDetails = () => {
             label="父类别"
           >
             <Select placeholder="选择父类别（可选）">
-              {/* 这里可以根据实际情况加载父类别选项 */}
+              {topLevelCategories.map(cat => (
+                <Select.Option key={cat._id} value={cat._id}>
+                  {cat.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
           

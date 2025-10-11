@@ -65,14 +65,48 @@ const AdminCategories = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [allTags, setAllTags] = useState([]);
 
+  // 组件初始化时加载数据
+  useEffect(() => {
+    // 同时加载类别数据和统计数据
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          fetchCategories(),
+          fetchCategoryStatistics()
+        ]);
+      } catch (error) {
+        console.error('初始化数据加载失败:', error);
+      }
+    };
+    
+    loadInitialData();
+  }, []);
+
   // 获取所有类别
   const fetchCategories = async () => {
     setLoading(true);
     try {
       const data = await categoryAPI.getAllCategories();
-      // 确保data始终是数组
-      const categoriesData = Array.isArray(data) ? data : [];
-      console.log('获取到的类别数据:', categoriesData);
+      console.log('原始响应数据:', data);
+      
+      // 增强数据处理逻辑，处理多种可能的数据格式
+      let categoriesData = [];
+      if (Array.isArray(data)) {
+        categoriesData = data;
+      } else if (data && typeof data === 'object') {
+        // 检查常见的数据嵌套格式
+        if (Array.isArray(data.data)) {
+          categoriesData = data.data;
+          console.log('发现嵌套数据格式，使用data.data作为类别数组');
+        } else if (Array.isArray(data.categories)) {
+          categoriesData = data.categories;
+          console.log('发现嵌套数据格式，使用data.categories作为类别数组');
+        } else {
+          console.warn('响应数据不是数组，也不包含可识别的数组属性');
+        }
+      }
+      
+      console.log('处理后的类别数据:', categoriesData);
       setCategories(categoriesData);
       // 构建树结构数据
       const tree = buildTreeData(categoriesData);
@@ -248,6 +282,10 @@ const AdminCategories = () => {
   const showCreateModal = () => {
     createForm.resetFields();
     setIsCreateModalVisible(true);
+    // 确保数据已加载，必要时刷新数据
+    if (categories.length === 0) {
+      fetchCategories();
+    }
   };
 
   // 打开编辑模态框
@@ -548,7 +586,10 @@ const AdminCategories = () => {
             <TreeSelect
               treeData={treeData}
               placeholder="选择父类别（可选）"
+              allowClear
               treeDefaultExpandAll
+              showSearch
+              treeNodeFilterProp="title"
             />
           </Form.Item>
           
