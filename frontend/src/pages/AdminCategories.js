@@ -64,6 +64,7 @@ const AdminCategories = () => {
   const [categoryDistributionChart, setCategoryDistributionChart] = useState({});
   const [selectedTags, setSelectedTags] = useState([]);
   const [allTags, setAllTags] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   // 组件初始化时加载数据
   useEffect(() => {
@@ -332,9 +333,17 @@ const AdminCategories = () => {
     },
     {
       title: '父类别',
-      dataIndex: ['parent', 'name'],
+      dataIndex: 'parent',
       key: 'parent',
-      render: parentName => parentName || '无'
+      render: (parent) => {
+        if (!parent) return '无';
+        if (typeof parent === 'string') {
+          // 查找对应的父类别名称
+          const parentCategory = categories.find(c => c._id === parent);
+          return parentCategory ? parentCategory.name : '未找到';
+        }
+        return parent.name || '无';
+      }
     },
     {
       title: '策略数量',
@@ -417,17 +426,23 @@ const AdminCategories = () => {
   // 筛选类别 - 确保categories始终是数组
   const filteredCategories = Array.isArray(categories) ? 
     categories.filter(category => {
-      if (selectedTags.length === 0) return true;
-      if (!category.tags) return false;
-      return selectedTags.some(tag => category.tags.includes(tag));
+      // 标签筛选逻辑
+      const tagCondition = selectedTags.length === 0 || 
+        (category.tags && selectedTags.some(tag => category.tags.includes(tag)));
+      
+      // 类别层次结构筛选逻辑
+      const categoryCondition = !selectedCategory || 
+        category._id === selectedCategory || 
+        (category.parent && (typeof category.parent === 'string' ? 
+          category.parent === selectedCategory : category.parent._id === selectedCategory));
+      
+      return tagCondition && categoryCondition;
     }) : [];
-  
 
-  // 初始加载数据
-  useEffect(() => {
-    fetchCategories();
-    fetchCategoryStatistics();
-  }, []);
+  // 清空选择的类别
+  const clearSelectedCategory = () => {
+    setSelectedCategory(null);
+  }
 
   return (
     <div>
@@ -515,9 +530,19 @@ const AdminCategories = () => {
               </Text>
             </div>
             <Divider />
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Text strong>类别层级结构：</Text>
+                {selectedCategory && (
+                  <Button 
+                    type="link" 
+                    size="small" 
+                    onClick={clearSelectedCategory}
+                    style={{ marginLeft: 8 }}
+                  >
+                    清空选择
+                  </Button>
+                )}
               </div>
               <Button 
                 type="link" 
@@ -533,7 +558,8 @@ const AdminCategories = () => {
               style={{ width: '100%', marginTop: 8 }}
               allowClear
               treeDefaultExpandAll
-              disabled
+              value={selectedCategory}
+              onChange={(value) => setSelectedCategory(value)}
             />
           </Card>
         </Col>

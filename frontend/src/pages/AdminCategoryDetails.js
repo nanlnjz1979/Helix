@@ -294,20 +294,43 @@ const AdminCategoryDetails = () => {
       parent: category.parent?._id || undefined,
       tags: category.tags || []
     });
-    // 先设置模态框为打开状态
-    setIsEditModalVisible(true);
-    // 然后加载顶级类别列表
+    
+    // 先加载顶级类别列表，再显示模态框
     try {
-      const allCategories = await categoryAPI.getAllCategories();
+      const data = await categoryAPI.getAllCategories();
+      console.log('原始类别数据:', data);
+      
+      // 增强数据处理逻辑，处理多种可能的数据格式
+      let allCategories = [];
+      if (Array.isArray(data)) {
+        allCategories = data;
+      } else if (data && typeof data === 'object') {
+        // 检查常见的数据嵌套格式
+        if (Array.isArray(data.data)) {
+          allCategories = data.data;
+          console.log('发现嵌套数据格式，使用data.data作为类别数组');
+        } else if (Array.isArray(data.categories)) {
+          allCategories = data.categories;
+          console.log('发现嵌套数据格式，使用data.categories作为类别数组');
+        } else {
+          console.warn('响应数据不是数组，也不包含可识别的数组属性');
+        }
+      }
+      
       // 过滤出 parent==null 的顶级类别，并排除当前类别
       const topCategories = allCategories.filter(cat => 
         cat.parent === null && cat._id !== categoryId
       );
       console.log('加载的顶级类别:', topCategories);
       setTopLevelCategories(topCategories);
+      
+      // 数据加载完成后再显示模态框
+      setIsEditModalVisible(true);
     } catch (error) {
       console.error('获取顶级类别失败:', error);
       message.error('加载父类别列表失败');
+      // 即使加载失败也显示模态框，让用户可以编辑其他字段
+      setIsEditModalVisible(true);
     }
   };
 
