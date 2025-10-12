@@ -3,6 +3,7 @@ import { Table, Button, Modal, Form, Select, message, Typography, Tag, Card, Inp
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { categoryAPI } from '../services/categoryAPI';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -17,6 +18,8 @@ const AdminStrategies = () => {
   const [form] = Form.useForm();
   const [deleteStrategyId, setDeleteStrategyId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const navigate = useNavigate();
 
   // 获取策略列表
@@ -41,8 +44,27 @@ const AdminStrategies = () => {
     }
   }, [filterStatus]);
 
+  // 获取策略分类数据
+  const fetchCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const data = await categoryAPI.getAllCategories();
+      // 确保返回的是数组
+      const categoriesList = Array.isArray(data.categories) ? data.categories : [];
+      setCategories(categoriesList);
+    } catch (error) {
+      console.error('获取策略分类失败:', error);
+      message.error('获取策略分类失败');
+      // 不使用默认分类作为后备，保持categories为空数组
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
   useEffect(() => {
     fetchStrategies();
+    fetchCategories();
   }, [filterStatus, fetchStrategies]);
 
   // 显示审核模态框
@@ -115,12 +137,10 @@ const AdminStrategies = () => {
       title: '策略类型',
       dataIndex: 'type',
       key: 'type',
-      filters: [
-        { text: '技术指标', value: '技术指标' },
-        { text: '机器学习', value: '机器学习' },
-        { text: '统计套利', value: '统计套利' },
-        { text: '事件驱动', value: '事件驱动' }
-      ],
+      filters: categories.map(category => ({
+        text: category.name,
+        value: category.name
+      })),
       onFilter: (value, record) => record.type === value
     },
     {
@@ -209,7 +229,7 @@ const AdminStrategies = () => {
         columns={columns}
         dataSource={strategies}
         rowKey="_id"
-        loading={loading}
+        loading={loading || loadingCategories}
         pagination={{
           pageSize: 10,
           showSizeChanger: true,

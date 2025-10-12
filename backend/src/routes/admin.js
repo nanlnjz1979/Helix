@@ -1,3 +1,4 @@
+// 管理员路由
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -50,5 +51,6 @@ router.delete('/strategies/:id', adminController.deleteStrategy);
 
 // 分析数据路由
 router.get('/analytics', adminController.getAnalyticsData);
+router.get('/stats', adminController.getAnalyticsData); // 添加stats路由，指向相同的方法
 
 module.exports = router;

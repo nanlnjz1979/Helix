@@ -20,6 +20,9 @@ import AdminStrategies from './pages/AdminStrategies';
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminCategories from './pages/AdminCategories';
 import AdminCategoryDetails from './pages/AdminCategoryDetails';
+import AdminTemplates from './pages/AdminTemplates';
+import AdminTemplateEdit from './pages/AdminTemplateEdit';
+import AdminTemplateReview from './pages/AdminTemplateReview';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
@@ -144,6 +147,36 @@ function App() {
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminCategoryDetails />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        
+        {/* 模板管理路由 */}
+        <Route path="/admin/templates" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminTemplates />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/templates/create" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminTemplateEdit />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/templates/edit/:id" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminTemplateEdit />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/templates/review" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminTemplateReview />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />

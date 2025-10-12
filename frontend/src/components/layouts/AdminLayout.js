@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import {
-  DashboardOutlined,
-  UserOutlined,
-  CodeOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  SettingOutlined,
-  BarChartOutlined,
-  TagOutlined
-} from '@ant-design/icons';
+import {  DashboardOutlined,  UserOutlined,  CodeOutlined,  LogoutOutlined,  MenuFoldOutlined,  MenuUnfoldOutlined,  SettingOutlined,  BarChartOutlined,  TagOutlined,  FileTextOutlined} from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
 
@@ -61,7 +51,8 @@ const AdminLayout = ({ children }) => {
       label: '用户管理',
       onClick: () => navigate('/admin/users')
     },
-    {      key: 'strategies',      icon: <CodeOutlined />,      label: '策略管理',      onClick: () => navigate('/admin/strategies')    },    {      key: 'categories',      icon: <TagOutlined />,      label: '策略类型管理',      onClick: () => navigate('/admin/categories')    }
+    {      key: 'strategies',      icon: <CodeOutlined />,      label: '策略管理',      onClick: () => navigate('/admin/strategies')    },    {      key: 'categories',      icon: <TagOutlined />,      label: '策略类型管理',      onClick: () => navigate('/admin/categories')    },
+    {      key: 'templates',      icon: <FileTextOutlined />,      label: '模板管理',      onClick: () => navigate('/admin/templates')    }
   ];
   
   return (

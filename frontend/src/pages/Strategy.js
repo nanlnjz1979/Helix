@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tabs, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CodeOutlined } from '@ant-design/icons';
+import { categoryAPI } from '../services/categoryAPI';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -8,7 +9,7 @@ const { TextArea } = Input;
 
 const Strategy = () => {
   const [strategies, setStrategies] = useState([
-    {
+    { 
       id: '1',
       name: '均线交叉策略',
       description: '当短期均线上穿长期均线时买入，下穿时卖出',
@@ -38,6 +39,30 @@ const Strategy = () => {
   const [isCodeModalVisible, setIsCodeModalVisible] = useState(false);
   const [currentStrategy, setCurrentStrategy] = useState(null);
   const [form] = Form.useForm();
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
+  // 获取策略分类数据
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const data = await categoryAPI.getAllCategories();
+        // 确保返回的是数组
+        const categoriesList = Array.isArray(data.categories) ? data.categories : [];
+        setCategories(categoriesList);
+      } catch (error) {
+        console.error('获取策略分类失败:', error);
+        message.error('获取策略分类失败');
+        // 不使用默认分类作为后备，保持categories为空数组
+        setCategories([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const columns = [
     {
@@ -319,11 +344,10 @@ def handle_data(context, data):
             label="策略类型"
             rules={[{ required: true, message: '请选择策略类型' }]}
           >
-            <Select placeholder="请选择策略类型">
-              <Option value="技术指标">技术指标</Option>
-              <Option value="机器学习">机器学习</Option>
-              <Option value="统计套利">统计套利</Option>
-              <Option value="事件驱动">事件驱动</Option>
+            <Select placeholder="请选择策略类型" loading={loadingCategories}>
+              {categories.map(category => (
+                <Option key={category._id} value={category.name}>{category.name}</Option>
+              ))}
             </Select>
           </Form.Item>
           

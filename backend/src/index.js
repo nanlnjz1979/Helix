@@ -62,16 +62,22 @@ mongoose.connection.on('disconnected', () => {
 // 设置路由和启动服务器的函数
 function setupRoutesAndStartServer() {
   // 导入路由
-  const authRoutes = require('./routes/auth');
-  const strategyRoutes = require('./routes/strategies');
-  const adminRoutes = require('./routes/admin');
-  const categoryRoutesModule = require('./routes/categoryRoutes');
-  const categoryController = require('./controllers/categoryController');
+const authRoutes = require('./routes/auth');
+const strategyRoutes = require('./routes/strategies');
+const adminRoutes = require('./routes/admin');
+const categoryRoutesModule = require('./routes/categoryRoutes');
+const categoryController = require('./controllers/categoryController');
+// 导入模板相关路由
+const templateRoutes = require('./routes/templateRoutes');
+const templateCategoryRoutes = require('./routes/templateCategoryRoutes');
   
   // 路由
   app.use('/api/auth', authRoutes);
   app.use('/api/strategies', strategyRoutes);
   app.use('/api/admin', adminRoutes);
+  // 挂载模板相关路由
+  app.use('/api', templateRoutes);
+  app.use('/api', templateCategoryRoutes);
   
   // 只有当categoryRoutes存在时才挂载
   if (categoryRoutesModule && categoryRoutesModule.router) {
