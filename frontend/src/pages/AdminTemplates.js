@@ -24,8 +24,16 @@ const AdminTemplates = () => {
     
     // 查找策略类型
     const findCategory = (categoriesList, id) => {
+      if (!categoriesList || !Array.isArray(categoriesList)) {
+        console.warn('策略类型数据格式不正确:', categoriesList);
+        return null;
+      }
+      
       for (const category of categoriesList) {
-        if ((category._id || category.id) === id) return category;
+        // 处理ID比较，兼容字符串和对象ID
+        const categoryIdValue = category._id || category.id;
+        const searchIdValue = typeof id === 'string' ? id : (id._id || id.id);
+        if (categoryIdValue === searchIdValue) return category;
         if (category.children && category.children.length) {
           const found = findCategory(category.children, id);
           if (found) return found;
@@ -34,7 +42,13 @@ const AdminTemplates = () => {
       return null;
     };
     
-    const category = findCategory(strategyTypes, categoryId);
+    const category = findCategory(strategyTypes || [], categoryId);
+    
+    // 添加调试信息，帮助定位问题
+    if (!category && strategyTypes) {
+      console.warn('未找到对应的策略类型:', categoryId, '可用策略类型:', strategyTypes);
+    }
+    
     return category ? category.name : '未知分类';
   };
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -89,9 +103,11 @@ const AdminTemplates = () => {
     
     // 分类过滤
     if (categoryFilter !== 'all') {
-      result = result.filter(template => 
-        template.category === categoryFilter
-      );
+      result = result.filter(template => {
+        // 处理不同格式的category字段
+        const templateCategoryValue = template.category._id;
+        return templateCategoryValue === categoryFilter;
+      });
     }
     
     // 搜索过滤
@@ -361,6 +377,7 @@ const AdminTemplates = () => {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      render: date => date ? new Date(date).toLocaleDateString() : '',
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     },
     {
