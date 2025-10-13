@@ -23,7 +23,7 @@ try {
       },
       category: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'TemplateCategory',
+        ref: 'Category',
         required: true
       },
       version: {

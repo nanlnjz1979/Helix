@@ -132,6 +132,19 @@ export const categoryAPI = {
       console.error('[CATEGORY API] 获取策略类别变更历史失败:', error);
       throw error;
     }
+  },
+
+  // 获取类别树结构
+  getCategoryTree: async () => {
+    console.log('[CATEGORY API] 获取类别树结构');
+    try {
+      const response = await api.get('/admin/categories/tree');
+      console.log('[CATEGORY API] 获取类别树结构成功，响应数据:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[CATEGORY API] 获取类别树结构失败:', error);
+      throw error;
+    }
   }
 };
 

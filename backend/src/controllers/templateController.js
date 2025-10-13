@@ -1,7 +1,7 @@
 // 模板控制器
 const mongoose = require('mongoose');
 const Template = require('../models/Template');
-const TemplateCategory = require('../models/TemplateCategory');
+const Category = require('../models/Category');
 const User = require('../models/User');
 
 // 获取所有模板
@@ -110,10 +110,10 @@ const createTemplate = async (req, res) => {
       return res.status(400).json({ message: '模板名称、描述、分类和代码是必填项' });
     }
     
-    // 验证分类是否存在
-    const categoryExists = await TemplateCategory.findById(category);
+    // 验证策略类型是否存在
+    const categoryExists = await Category.findById(category);
     if (!categoryExists) {
-      return res.status(400).json({ message: '指定的分类不存在' });
+      return res.status(400).json({ message: '指定的策略类型不存在' });
     }
     
     // 自动设置来源：管理员用户创建的模板默认为官方，其他用户创建的为用户分享
@@ -140,8 +140,8 @@ const createTemplate = async (req, res) => {
     
     await template.save();
     
-    // 更新分类的模板数量
-    await TemplateCategory.findByIdAndUpdate(category, {
+    // 更新策略类型的模板数量
+    await Category.findByIdAndUpdate(category, {
       $inc: { templateCount: 1 }
     });
     
@@ -173,19 +173,19 @@ const updateTemplate = async (req, res) => {
       return res.status(403).json({ message: '无权限修改官方模板' });
     }
     
-    // 验证分类是否存在（如果更新了分类）
+    // 验证策略类型是否存在（如果更新了分类）
     if (updates.category) {
-      const categoryExists = await TemplateCategory.findById(updates.category);
+      const categoryExists = await Category.findById(updates.category);
       if (!categoryExists) {
-        return res.status(400).json({ message: '指定的分类不存在' });
+        return res.status(400).json({ message: '指定的策略类型不存在' });
       }
       
-      // 如果分类发生变化，更新旧分类的模板数量
+      // 如果策略类型发生变化，更新旧策略类型的模板数量
       if (template.category.toString() !== updates.category) {
-        await TemplateCategory.findByIdAndUpdate(template.category, {
+        await Category.findByIdAndUpdate(template.category, {
           $inc: { templateCount: -1 }
         });
-        await TemplateCategory.findByIdAndUpdate(updates.category, {
+        await Category.findByIdAndUpdate(updates.category, {
           $inc: { templateCount: 1 }
         });
       }
@@ -218,8 +218,8 @@ const deleteTemplate = async (req, res) => {
       return res.status(403).json({ message: '无权限删除该模板' });
     }
     
-    // 更新分类的模板数量
-    await TemplateCategory.findByIdAndUpdate(template.category, {
+    // 更新策略类型的模板数量
+    await Category.findByIdAndUpdate(template.category, {
       $inc: { templateCount: -1 }
     });
     
@@ -295,8 +295,8 @@ const cloneTemplate = async (req, res) => {
     
     await clonedTemplate.save();
     
-    // 更新分类的模板数量
-    await TemplateCategory.findByIdAndUpdate(originalTemplate.category, {
+    // 更新策略类型的模板数量
+    await Category.findByIdAndUpdate(originalTemplate.category, {
       $inc: { templateCount: 1 }
     });
     
@@ -348,10 +348,10 @@ const getTemplateStatistics = async (req, res) => {
     ]);
     const totalUsage = usageStats.length > 0 ? usageStats[0].totalUsage : 0;
     
-    // 获取分类统计
+    // 获取策略类型统计
     const categoryStats = await Template.aggregate([
       { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $lookup: { from: 'templatecategories', localField: '_id', foreignField: '_id', as: 'categoryInfo' } },
+      { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'categoryInfo' } },
       { $unwind: '$categoryInfo' },
       { $project: { _id: 0, category: '$categoryInfo.name', count: 1 } }
     ]);

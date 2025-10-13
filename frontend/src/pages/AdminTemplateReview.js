@@ -3,6 +3,7 @@ import { Table, Button, Input, Space, Tag, Modal, Card, Radio, Form, message, Dr
 import { SearchOutlined, EditOutlined, PlayCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined, EyeOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import templateAPI from '../services/templateAPI';
+import categoryAPI from '../services/categoryAPI';
 
 const { TextArea } = Input;
 
@@ -35,8 +36,21 @@ const AdminTemplateReview = () => {
   // 获取模板分类
   const fetchTemplateCategories = async () => {
     try {
-      const data = await templateAPI.getTemplateCategories();
-      setCategories(data.categories || []);
+      const response = await categoryAPI.getCategoryTree();
+      // 处理不同的数据格式
+      let categoriesData = [];
+      if (response && response.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      } else if (Array.isArray(response)) {
+        categoriesData = response;
+      } else if (response && typeof response === 'object') {
+        if (Array.isArray(response.categories)) {
+          categoriesData = response.categories;
+        } else if (Array.isArray(response.tree)) {
+          categoriesData = response.tree;
+        }
+      }
+      setCategories(categoriesData);
     } catch (error) {
       console.error('获取模板分类失败:', error);
       setCategories([]);

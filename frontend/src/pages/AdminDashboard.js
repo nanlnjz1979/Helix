@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Statistic, Typography, Table, Button, Tag, Badge, Progress } from 'antd';
 import { UserOutlined, CodeOutlined, BarChartOutlined, LockOutlined, DollarOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
@@ -45,8 +45,10 @@ const AdminDashboard = () => {
     const fetchRecentUsers = async () => {
       try {
         const response = await api.get('/admin/users');
+        // 确保response.data是数组或提取users属性
+        const usersData = Array.isArray(response.data) ? response.data : response.data.users || [];
         // 按创建时间排序，取最近5个用户
-        const sortedUsers = response.data
+        const sortedUsers = usersData
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 5);
         setRecentUsers(sortedUsers);
@@ -69,8 +71,10 @@ const AdminDashboard = () => {
         const response = await api.get('/admin/strategies', {
           params: { approved: false }
         });
+        // 确保我们使用的是数据数组
+        const strategiesData = Array.isArray(response.data) ? response.data : (response.data?.strategies || []);
         // 按创建时间排序，取最近5个待审核策略
-        const sortedStrategies = response
+        const sortedStrategies = strategiesData
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 5);
         setPendingStrategies(sortedStrategies);

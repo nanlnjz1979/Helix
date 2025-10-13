@@ -1,20 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Tag, Select, Card, Row, Col, Modal, message } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Table, Button, Input, Space, Tag, Select, TreeSelect, Card, Row, Col, Modal, message } from 'antd';
 import { SearchOutlined, EditOutlined, EyeOutlined, LockOutlined, UnlockOutlined, CopyOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import templateAPI from '../services/templateAPI';
+import categoryAPI from '../services/categoryAPI';
 
 const { Option } = Select;
 const { Search } = Input;
+const { TreeNode } = TreeSelect;
 
 const AdminTemplates = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [strategyTypes, setStrategyTypes] = useState([]);
   const [filteredTemplates, setFilteredTemplates] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // 获取策略类型名称
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return '未分类';
+    
+    // 查找策略类型
+    const findCategory = (categoriesList, id) => {
+      for (const category of categoriesList) {
+        if ((category._id || category.id) === id) return category;
+        if (category.children && category.children.length) {
+          const found = findCategory(category.children, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    
+    const category = findCategory(strategyTypes, categoryId);
+    return category ? category.name : '未知分类';
+  };
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -25,10 +47,71 @@ const AdminTemplates = () => {
     draft: 0
   });
 
+  // 构建策略类型树形结构数据
+  const buildTreeNodes = useCallback((treeData) => {
+    if (!treeData || !Array.isArray(treeData)) {
+      return null;
+    }
+    
+    return treeData.map(node => {
+      const nodeId = node.id || node._id;
+      // 如果有子节点，递归构建
+      if (node.children && node.children.length > 0) {
+        return (
+          <TreeNode key={nodeId} value={nodeId} title={node.name}>
+            {buildTreeNodes(node.children)}
+          </TreeNode>
+        );
+      }
+      return <TreeNode key={nodeId} value={nodeId} title={node.name} />;
+    });
+  }, []);
+
+  // 更新模板统计信息
+  const updateTemplateStats = useCallback((templateList) => {
+    const stats = {
+      total: templateList.length,
+      published: templateList.filter(t => t.status === 'published').length,
+      reviewing: templateList.filter(t => t.status === 'reviewing').length,
+      draft: templateList.filter(t => t.status === 'draft').length
+    };
+    setTemplateStats(stats);
+  }, []);
+
+  // 过滤模板
+  const filterTemplates = useCallback((templateList) => {
+    let result = [...templateList];
+    
+    // 状态过滤
+    if (statusFilter !== 'all') {
+      result = result.filter(template => template.status === statusFilter);
+    }
+    
+    // 分类过滤
+    if (categoryFilter !== 'all') {
+      result = result.filter(template => 
+        template.category === categoryFilter
+      );
+    }
+    
+    // 搜索过滤
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      result = result.filter(template => 
+        (template.name && template.name.toLowerCase().includes(searchLower)) ||
+        (template.description && template.description.toLowerCase().includes(searchLower)) ||
+        (template.tags && template.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+      );
+    }
+    
+    setFilteredTemplates(result);
+  }, [statusFilter, categoryFilter, searchText]);
+
   // 获取模板列表
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
+      // 确保参数名正确，使用category而不是categories
       const response = await templateAPI.getTemplates({
         page: 1,
         pageSize: 1000, // 获取所有模板
@@ -53,76 +136,41 @@ const AdminTemplates = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // 获取模板分类
-  const fetchCategories = async () => {
+  }, [statusFilter, categoryFilter, searchText, filterTemplates, updateTemplateStats]);
+  
+  // 获取策略类型数据
+  const fetchCategories = useCallback(async () => {
     try {
-      const response = await templateAPI.getTemplateCategories();
+      // 使用categoryAPI获取策略类型（分类）树
+      const response = await categoryAPI.getCategoryTree();
       
       // 增强数据处理逻辑，处理多种可能的数据格式
-      let categoriesData = [];
-      if (Array.isArray(response)) {
+      let categoriesData = null;
+      if (response && response.data && Array.isArray(response.data)) {
+        // 保存原始树状结构数据
+        categoriesData = response.data;
+        console.log('获取的策略类型树结构数据:', categoriesData);
+      } else if (Array.isArray(response)) {
+        // 如果直接返回数组，仍然保持兼容性
         categoriesData = response;
       } else if (response && typeof response === 'object') {
         // 检查常见的数据嵌套格式
-        if (Array.isArray(response.data)) {
-          categoriesData = response.data;
+        if (Array.isArray(response.tree)) {
+          categoriesData = response.tree;
         } else if (Array.isArray(response.categories)) {
           categoriesData = response.categories;
         } else {
-          console.warn('响应数据不是数组，也不包含可识别的数组属性');
+          console.warn('响应数据不是树状结构，也不包含可识别的数组属性');
         }
       }
       
-      console.log('处理后的模板分类数据:', categoriesData);
-      setCategories(categoriesData);
+      setStrategyTypes(categoriesData);
     } catch (error) {
-      console.error('获取模板分类失败:', error);
-      message.error('获取模板分类失败：' + (error.response?.data?.message || error.message));
-      setCategories([]);
+      console.error('获取策略类型失败:', error);
+      message.error('获取策略类型失败：' + (error.response?.data?.message || error.message));
+      setStrategyTypes(null);
     }
-  };
-
-  // 更新模板统计信息
-  const updateTemplateStats = (templateList) => {
-    const stats = {
-      total: templateList.length,
-      published: templateList.filter(t => t.status === 'published').length,
-      reviewing: templateList.filter(t => t.status === 'reviewing').length,
-      draft: templateList.filter(t => t.status === 'draft').length
-    };
-    setTemplateStats(stats);
-  };
-
-  // 过滤模板
-  const filterTemplates = (templateList) => {
-    let result = [...templateList];
-    
-    // 状态过滤
-    if (statusFilter !== 'all') {
-      result = result.filter(template => template.status === statusFilter);
-    }
-    
-    // 分类过滤
-    if (categoryFilter !== 'all') {
-      result = result.filter(template => 
-        template.categories && template.categories.includes(categoryFilter)
-      );
-    }
-    
-    // 搜索过滤
-    if (searchText) {
-      const searchLower = searchText.toLowerCase();
-      result = result.filter(template => 
-        (template.name && template.name.toLowerCase().includes(searchLower)) ||
-        (template.description && template.description.toLowerCase().includes(searchLower)) ||
-        (template.tags && template.tags.some(tag => tag.toLowerCase().includes(searchLower)))
-      );
-    }
-    
-    setFilteredTemplates(result);
-  };
+  }, []);
 
   // 处理搜索
   const handleSearch = (value) => {
@@ -218,19 +266,21 @@ const AdminTemplates = () => {
       sorter: (a, b) => a.name.localeCompare(b.name)
     },
     {
-      title: '分类',
-      dataIndex: 'categories',
-      key: 'categories',
-      render: (templateCategories) => {
-        if (!templateCategories || templateCategories.length === 0) return '-';
-        return templateCategories.map(categoryId => {
-          const category = categories.find(c => c.id === categoryId || c._id === categoryId);
-          return category ? (
-            <Tag key={categoryId} color="blue">{category.name}</Tag>
-          ) : (
-            <Tag key={categoryId} color="default">{categoryId}</Tag>
-          );
-        });
+      title: '策略类型',
+      dataIndex: 'category',
+      key: 'category',
+      render: (categoryId) => {
+        if (!categoryId) {
+          return <Tag key="uncategorized" color="default">未分类</Tag>;
+        }
+        
+        const categoryName = getCategoryName(categoryId);
+        
+        return (
+          <Tag key={categoryId} color="blue">
+            {categoryName}
+          </Tag>
+        );
       }
     },
     {
@@ -255,7 +305,7 @@ const AdminTemplates = () => {
           high: '高风险'
         };
         return (
-          <Tag color={colorMap[riskLevel] || 'default'}>
+          <Tag key={`risk-${riskLevel}`} color={colorMap[riskLevel] || 'default'}>
             {textMap[riskLevel] || riskLevel}
           </Tag>
         );
@@ -294,7 +344,7 @@ const AdminTemplates = () => {
           rejected: '已驳回'
         };
         return (
-          <Tag color={colorMap[status] || 'default'}>
+          <Tag key={`status-${status}`} color={colorMap[status] || 'default'}>
             {textMap[status] || status}
           </Tag>
         );
@@ -321,7 +371,7 @@ const AdminTemplates = () => {
           <Button 
             type="text" 
             icon={<EditOutlined />} 
-            onClick={() => handleEditTemplate(record.id)} 
+            onClick={() => handleEditTemplate(record._id)} 
             size="small"
           >
             编辑
@@ -329,7 +379,7 @@ const AdminTemplates = () => {
           <Button 
             type="text" 
             icon={<EyeOutlined />} 
-            onClick={() => handlePreviewTemplate(record.id)} 
+            onClick={() => handlePreviewTemplate(record._id)} 
             size="small"
           >
             预览
@@ -338,7 +388,7 @@ const AdminTemplates = () => {
             <Button 
               type="text" 
               icon={<LockOutlined />} 
-              onClick={() => handleToggleStatus(record.id, 'published')} 
+              onClick={() => handleToggleStatus(record._id, 'published')} 
               size="small"
               danger
             >
@@ -348,7 +398,7 @@ const AdminTemplates = () => {
             <Button 
               type="text" 
               icon={<UnlockOutlined />} 
-              onClick={() => handleToggleStatus(record.id, record.status)} 
+              onClick={() => handleToggleStatus(record._id, record.status)} 
               size="small"
               disabled={record.status !== 'draft'}
             >
@@ -358,7 +408,7 @@ const AdminTemplates = () => {
           <Button 
             type="text" 
             icon={<CopyOutlined />} 
-            onClick={() => handleCloneTemplate(record.id)} 
+            onClick={() => handleCloneTemplate(record._id)} 
             size="small"
           >
             克隆
@@ -366,7 +416,7 @@ const AdminTemplates = () => {
           <Button 
             type="text" 
             icon={<DeleteOutlined />} 
-            onClick={() => showDeleteModal(record.id)} 
+            onClick={() => showDeleteModal(record._id)} 
             size="small"
             danger
           >
@@ -383,7 +433,7 @@ const AdminTemplates = () => {
   useEffect(() => {
     fetchTemplates();
     fetchCategories();
-  }, []);
+  }, [fetchTemplates, fetchCategories]);
 
   return (
     <div>
@@ -392,7 +442,7 @@ const AdminTemplates = () => {
         <Button 
           type="primary" 
           icon={<PlusOutlined />} 
-          onClick={() => navigate('/admin/templates/edit')}
+          onClick={() => navigate('/admin/templates/create')}
           style={{ marginTop: 8 }}
         >
           创建新模板
@@ -459,18 +509,17 @@ const AdminTemplates = () => {
               <Option value="published">已发布</Option>
               <Option value="rejected">已驳回</Option>
             </Select>
-            <Select
+            <TreeSelect
               placeholder="选择分类"
               allowClear
               style={{ width: 150 }}
               value={categoryFilter}
               onChange={handleCategoryFilterChange}
+              treeDefaultExpandAll
             >
-              <Option value="all">全部分类</Option>
-              {categories.map(category => (
-                <Option key={category.id} value={category.id}>{category.name}</Option>
-              ))}
-            </Select>
+              <TreeNode key="all" value="all" title="全部" />
+              {strategyTypes && buildTreeNodes(strategyTypes)}
+            </TreeSelect>
           </Space>
         </div>
 

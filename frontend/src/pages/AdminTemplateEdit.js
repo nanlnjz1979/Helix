@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Form, Input, Button, Upload, Select, Checkbox, InputNumber, Slider, Switch, Space, Card, Divider, Radio, message } from 'antd';
-import { UploadOutlined, InboxOutlined, CodeOutlined, SettingOutlined, EyeOutlined, SaveOutlined, SendOutlined, EditOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Tabs, Form, Input, Button, Upload, Select, InputNumber, Switch, Space, Card, Divider, Radio, message } from 'antd';
+import { InboxOutlined, CodeOutlined, SaveOutlined, SendOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import templateAPI from '../services/templateAPI';
+import categoryAPI from '../services/categoryAPI';
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 const { Dragger } = Upload;
+const { TabPane } = Tabs;
 
 // 模拟代码编辑器组件
 const MonacoEditor = ({ value, onChange }) => {
@@ -31,7 +32,8 @@ const AdminTemplateEdit = () => {
   const navigate = useNavigate();
   const params = useParams();
   const templateId = params.id;
-  const isEditMode = !!templateId;
+  // 定义isEditMode，检查templateId是否存在且不为空字符串
+  const isEditMode = templateId && typeof templateId === 'string' && templateId.trim() !== '';
   const [activeTab, setActiveTab] = useState('1');
   const [templateData, setTemplateData] = useState({
     name: '',
@@ -59,8 +61,21 @@ const AdminTemplateEdit = () => {
   // 获取模板分类
   const fetchCategories = async () => {
     try {
-      const response = await templateAPI.getTemplateCategories();
-      setAllCategories(response.categories || []);
+      const response = await categoryAPI.getCategoryTree();
+      // 处理不同的数据格式
+      let categoriesData = [];
+      if (response && response.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      } else if (Array.isArray(response)) {
+        categoriesData = response;
+      } else if (response && typeof response === 'object') {
+        if (Array.isArray(response.categories)) {
+          categoriesData = response.categories;
+        } else if (Array.isArray(response.tree)) {
+          categoriesData = response.tree;
+        }
+      }
+      setAllCategories(categoriesData);
     } catch (error) {
       console.error('获取模板分类失败:', error);
       message.error('获取模板分类失败');
@@ -85,25 +100,39 @@ const AdminTemplateEdit = () => {
     }
   };
 
-  // 获取模板详情
-  const fetchTemplateDetail = async () => {
+  // 获取模板详情 - 使用useCallback缓存函数
+  const fetchTemplateDetail = useCallback(async () => {
+    // 直接使用isEditMode判断
     if (isEditMode) {
       try {
         setLoading(true);
         const response = await templateAPI.getTemplateDetail(templateId);
-        const template = response.template;
-        setTemplateData(template);
-        form.setFieldsValue(template);
+        // 处理不同的数据格式，确保能正确获取模板数据
+        const template = response.template || response; // 如果response中没有template属性，直接使用response
+        // 确保关键数组属性存在且为数组，防止后续join操作出错
+        const safeTemplate = {
+          ...template,
+          tags: Array.isArray(template.tags) ? template.tags : [],
+          dependencies: Array.isArray(template.dependencies) ? template.dependencies : [],
+          categories: Array.isArray(template.categories) ? template.categories : [],
+          accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : []
+        };
+        setTemplateData(safeTemplate);
+        form.setFieldsValue(safeTemplate);
         // 解析参数
-        parseParamsFromCode(template.code);
+        if (safeTemplate.code) {
+          parseParamsFromCode(safeTemplate.code);
+        }
       } catch (error) {
         console.error('获取模板详情失败:', error);
         message.error('获取模板详情失败');
       } finally {
         setLoading(false);
       }
+    } else {
+      console.warn('无效的templateId，无法获取模板详情');
     }
-  };
+  }, [isEditMode, templateId, form]);
 
   // 从代码中解析参数
   const parseParamsFromCode = (code) => {
@@ -120,11 +149,18 @@ const AdminTemplateEdit = () => {
         if (paramMatch) {
           const [, name, value, description] = paramMatch;
           try {
+            // 安全地解析值，避免使用eval
+            let parsedValue;
+            if (value.trim() === 'true') parsedValue = true;
+            else if (value.trim() === 'false') parsedValue = false;
+            else if (!isNaN(value.trim())) parsedValue = Number(value.trim());
+            else parsedValue = value.trim().replace(/'/g, '');
+            
             params.push({
               name,
-              value: eval(value.trim()), // 注意：实际项目中需要更安全的方式解析值
+              value: parsedValue,
               description,
-              type: typeof eval(value.trim()),
+              type: typeof parsedValue,
               controlType: 'number' // 默认控件类型
             });
           } catch (e) {
@@ -141,8 +177,10 @@ const AdminTemplateEdit = () => {
   useEffect(() => {
     fetchCategories();
     fetchAccessGroups();
-    fetchTemplateDetail();
-  }, [templateId]);
+    if (isEditMode) { // 只有在编辑模式下才获取模板详情
+      fetchTemplateDetail();
+    }
+  }, [isEditMode, fetchTemplateDetail]);
 
   // 处理表单字段变化
   const handleFormChange = (changedValues) => {
@@ -194,6 +232,7 @@ const AdminTemplateEdit = () => {
       }
       
       message.success('草稿保存成功');
+      navigate('/admin/templates');
     } catch (error) {
       console.error('保存草稿失败:', error);
       message.error('保存草稿失败');
@@ -263,7 +302,7 @@ const AdminTemplateEdit = () => {
           layout="vertical"
           onValuesChange={handleFormChange}
           initialValues={templateData}
-          loading={loading}
+          loading={!!loading}
         >
           <Tabs activeKey={activeTab} onChange={setActiveTab}>
             {/* 基础信息标签页 */}
@@ -293,6 +332,7 @@ const AdminTemplateEdit = () => {
                   customRequest={handleUpload}
                   showUploadList={false}
                   beforeUpload={handleUpload}
+                  fileList={templateData.coverImage ? [{ uid: 'cover', url: templateData.coverImage }] : []}
                 >
                   {templateData.coverImage ? (
                     <div style={{ textAlign: 'center' }}>
@@ -331,7 +371,7 @@ const AdminTemplateEdit = () => {
               >
                 <Select mode="multiple" placeholder="请选择所属分类">
                   {allCategories.map(category => (
-                    <Option key={category.id} value={category.id}>{category.name}</Option>
+                    <Option key={category.id} value={category.id || ''}>{category.name}</Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -425,11 +465,11 @@ const AdminTemplateEdit = () => {
                             value={param.controlType}
                             onChange={(value) => handleControlTypeChange(index, value)}
                           >
-                            <Option value="number">数字输入框</Option>
-                            <Option value="slider">滑块</Option>
-                            <Option value="switch">开关</Option>
-                            <Option value="select">下拉选择</Option>
-                            <Option value="checkbox">复选框</Option>
+                            <Option key="number" value="number">数字输入框</Option>
+                            <Option key="slider" value="slider">滑块</Option>
+                            <Option key="switch" value="switch">开关</Option>
+                            <Option key="select" value="select">下拉选择</Option>
+                            <Option key="checkbox" value="checkbox">复选框</Option>
                           </Select>
                         </div>
                       </Form.Item>
@@ -478,7 +518,7 @@ const AdminTemplateEdit = () => {
               >
                 <Select mode="multiple" placeholder="请选择哪些用户组可以访问此模板">
                   {allAccessGroups.map(group => (
-                    <Option key={group.id} value={group.id}>{group.name}</Option>
+                    <Option key={group.id} value={group.id || ''}>{group.name}</Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -520,11 +560,11 @@ const AdminTemplateEdit = () => {
                       <p>{templateData.description || '模板简介'}</p>
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         {templateData.tags.map((tag, index) => (
-                          <span key={index} style={{ 
-                            backgroundColor: '#e6f7ff', 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
-                            fontSize: '12px' 
+                          <span key={`${tag}-${index}`} style={{
+                            backgroundColor: '#e6f7ff',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px'
                           }}>
                             {tag}
                           </span>
@@ -545,13 +585,13 @@ const AdminTemplateEdit = () => {
               </Card>
 
               <div style={{ display: 'flex', gap: 16, justifyContent: 'flex-end' }}>
-                <Button onClick={handleSaveDraft} icon={<SaveOutlined />} loading={loading}>
+                <Button onClick={handleSaveDraft} icon={<SaveOutlined />} loading={!!loading}>
                   保存草稿
                 </Button>
-                <Button type="primary" onClick={handleSubmitReview} icon={<SendOutlined />} loading={loading}>
+                <Button type="primary" onClick={handleSubmitReview} icon={<SendOutlined />} loading={!!loading}>
                   提交审核
                 </Button>
-                <Button type="primary" danger onClick={handlePublish} icon={<EditOutlined />} loading={loading}>
+                <Button type="primary" danger onClick={handlePublish} icon={<EditOutlined />} loading={!!loading}>
                   立即发布
                 </Button>
               </div>

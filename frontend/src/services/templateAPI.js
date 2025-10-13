@@ -39,6 +39,11 @@ export const getTemplates = async (params = {}) => {
  */
 export const getTemplateDetail = async (templateId) => {
   try {
+    // 验证templateId是否有效
+    if (!templateId || typeof templateId !== 'string' || templateId.trim() === '') {
+      throw new Error('模板ID无效');
+    }
+    
     const response = await api.get(`/templates/${templateId}`);
     return response.data;
   } catch (error) {
@@ -127,65 +132,7 @@ export const cloneTemplate = async (templateId, cloneData = {}) => {
   }
 };
 
-/**
- * 获取模板分类列表
- * @returns {Promise} - 返回分类列表
- */
-export const getTemplateCategories = async () => {
-  try {
-    const response = await api.get('/template-categories');
-    return response.data;
-  } catch (error) {
-    console.error('获取模板分类失败:', error);
-    throw error;
-  }
-};
 
-/**
- * 创建模板分类
- * @param {Object} categoryData - 分类数据
- * @returns {Promise} - 返回创建结果
- */
-export const createTemplateCategory = async (categoryData) => {
-  try {
-    const response = await api.post('/template-categories', categoryData);
-    return response.data;
-  } catch (error) {
-    console.error('创建模板分类失败:', error);
-    throw error;
-  }
-};
-
-/**
- * 更新模板分类
- * @param {string} categoryId - 分类ID
- * @param {Object} categoryData - 分类数据
- * @returns {Promise} - 返回更新结果
- */
-export const updateTemplateCategory = async (categoryId, categoryData) => {
-  try {
-    const response = await api.put(`/template-categories/${categoryId}`, categoryData);
-    return response.data;
-  } catch (error) {
-    console.error('更新模板分类失败:', error);
-    throw error;
-  }
-};
-
-/**
- * 删除模板分类
- * @param {string} categoryId - 分类ID
- * @returns {Promise} - 返回删除结果
- */
-export const deleteTemplateCategory = async (categoryId) => {
-  try {
-    const response = await api.delete(`/template-categories/${categoryId}`);
-    return response.data;
-  } catch (error) {
-    console.error('删除模板分类失败:', error);
-    throw error;
-  }
-};
 
 /**
  * 获取待审核的模板列表
@@ -285,10 +232,6 @@ export default {
   deleteTemplate,
   changeTemplateStatus,
   cloneTemplate,
-  getTemplateCategories,
-  createTemplateCategory,
-  updateTemplateCategory,
-  deleteTemplateCategory,
   getPendingTemplates,
   reviewTemplate,
   testTemplateCode,
