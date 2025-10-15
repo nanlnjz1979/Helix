@@ -59,7 +59,7 @@ async function testCreateCategoryLogic() {
     log('直接使用Category模型创建并保存数据...');
     const categoryData = {
       ...mockReq.body,
-      owner: mockReq.user._id,
+      owner: mockReq.user.id,
       archived: false,
       createdAt: new Date(),
       updatedAt: new Date()

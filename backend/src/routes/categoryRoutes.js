@@ -14,7 +14,7 @@ router.get('/categories', auth, async (req, res) => {
     const query = {
       ...originalQuery,
       visibility: ['public', 'private'],
-      user: req.user._id
+      user: req.user.id
     };
     
     // 更新req.query
@@ -35,7 +35,7 @@ router.get('/categories/tree', auth, async (req, res) => {
     const query = {
       ...originalQuery,
       visibility: ['public', 'private'],
-      user: req.user._id
+      user: req.user.id
     };
     
     // 更新req.query
@@ -70,7 +70,7 @@ router.put('/categories/:id', auth, async (req, res) => {
       }
       
       // 检查是否为类别所有者
-      if (category.visibility === 'private' && category.owner.toString() !== req.user._id.toString()) {
+      if (category.visibility === 'private' && category.owner.toString() !== req.user.id.toString()) {
         return res.status(403).json({ message: '无权限更新该类别' });
       }
       
@@ -121,7 +121,7 @@ router.post('/strategies/:strategyId/categories/:categoryId', auth, async (req, 
     }
     
     // 检查是否有权限使用该类别
-    if (category.visibility === 'private' && category.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (category.visibility === 'private' && category.owner.toString() !== req.user.id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ message: '无权限使用该私有类别' });
     }
   } catch (error) {
@@ -166,7 +166,7 @@ router.get('/categories/:categoryId/strategies', auth, async (req, res) => {
     }
     
     // 检查是否有权限查看该类别下的策略
-    if (category.visibility === 'private' && category.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (category.visibility === 'private' && category.owner.toString() !== req.user.id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ message: '无权限查看该私有类别下的策略' });
     }
   } catch (error) {
@@ -186,7 +186,7 @@ router.get('/categories/stats', auth, async (req, res) => {
     // 创建新的查询参数，添加过滤
     const query = {
       ...originalQuery,
-      user: req.user._id
+      user: req.user.id
     };
     
     // 更新req.query
@@ -215,7 +215,7 @@ router.get('/categories/distribution', auth, async (req, res) => {
     // 创建新的查询参数，添加过滤
     const query = {
       ...originalQuery,
-      user: req.user._id
+      user: req.user.id
     };
     
     // 更新req.query
@@ -240,7 +240,7 @@ router.get('/categories/:id', auth, async (req, res) => {
   if (req.user.role !== 'admin') {
     try {
       const category = await categoryController.getCategoryById(req, res, true); // true 表示仅获取数据不响应
-      if (!category || (category.visibility === 'private' && category.owner.toString() !== req.user._id.toString())) {
+      if (!category || (category.visibility === 'private' && category.owner.toString() !== req.user.id.toString())) {
         return res.status(403).json({ message: '无权限查看该类别' });
       }
       return res.json(category);

@@ -36,6 +36,16 @@ const AdminTemplateEdit = () => {
   // 定义isEditMode，检查templateId是否存在且不为空字符串
   const isEditMode = templateId && typeof templateId === 'string' && templateId.trim() !== '';
   const [activeTab, setActiveTab] = useState('1');
+  // 获取当前登录用户，这里模拟从localStorage获取，实际项目中应从认证上下文或全局状态获取
+  const getCurrentUser = () => {
+    try {
+      const currentUser = localStorage.getItem('currentUser') ? JSON.parse(localStorage.getItem('currentUser')) : { username: 'admin' };
+      return currentUser.username || currentUser.name || 'admin';
+    } catch (error) {
+      console.error('获取当前用户失败:', error);
+      return 'admin';
+    }
+  };
   const [templateData, setTemplateData] = useState({
     name: '',
     description: '',
@@ -52,7 +62,8 @@ const AdminTemplateEdit = () => {
     allowTrial: false,
     accessGroups: [],
     dependencies: [],
-    versionLog: ''
+    versionLog: '',
+    author: getCurrentUser() // 自动添加作者字段，使用当前登录用户
   });
   const [allCategories, setAllCategories] = useState([]);
   const [allAccessGroups, setAllAccessGroups] = useState([]);
@@ -133,7 +144,7 @@ const AdminTemplateEdit = () => {
           tags: Array.isArray(template.tags) ? template.tags : [],
           dependencies: Array.isArray(template.dependencies) ? template.dependencies : [],
           // 确保categories字段存在
-          categories: template.categories || null,
+          categories: template.category._id  || null,
           accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : [],
           // 单选模式下，直接使用categories作为category字段值
           category: template.categories 
@@ -146,8 +157,10 @@ const AdminTemplateEdit = () => {
           ...safeTemplate,
           // 如果categories是数组，使用第一个元素；如果是对象，使用其id；否则直接使用
           categories: Array.isArray(safeTemplate.categories) && safeTemplate.categories.length > 0 
-            ? (typeof safeTemplate.categories[0] === 'object' && safeTemplate.categories[0].id ? safeTemplate.categories[0].id : safeTemplate.categories[0])
-            : (typeof safeTemplate.categories === 'object' && safeTemplate.categories.id ? safeTemplate.categories.id : safeTemplate.categories)
+            ? (typeof safeTemplate.categories[0] === 'object' && safeTemplate.categories[0]._id ? safeTemplate.categories[0]._id : safeTemplate.categories[0])
+            : (typeof safeTemplate.categories === 'object' && safeTemplate.categories._id ? safeTemplate.categories._id : safeTemplate.categories),
+          // 确保form中也包含author字段
+          author: safeTemplate.author || getCurrentUser()
         };
         form.setFieldsValue(formValues);
         // 解析参数
@@ -218,10 +231,29 @@ const AdminTemplateEdit = () => {
     // 检查是否有categories变化，如果有则同步更新category字段
     let updatedValues = { ...changedValues };
     if (changedValues.categories) {
-      updatedValues.category = changedValues.categories; // 单选模式下直接使用categories值
+      // 确保category字段是字符串格式的ObjectId
+      if (typeof changedValues.categories === 'object') {
+        // 如果是对象格式，尝试获取id属性
+        updatedValues.category = changedValues.categories.id || changedValues.categories._id || String(changedValues.categories);
+      } else if (Array.isArray(changedValues.categories) && changedValues.categories.length > 0) {
+        // 如果是数组格式，取第一个元素并确保是字符串
+        const firstCategory = changedValues.categories[0];
+        updatedValues.category = typeof firstCategory === 'object' ? 
+          (firstCategory.id || firstCategory._id || String(firstCategory)) : 
+          String(firstCategory);
+      } else {
+        // 其他情况直接转为字符串
+        updatedValues.category = String(changedValues.categories);
+      }
     }
     
-    setTemplateData(prev => ({ ...prev, ...updatedValues }));
+    // 确保在更新时保留author字段
+    setTemplateData(prev => ({ 
+      ...prev, 
+      ...updatedValues,
+      // 确保author字段始终存在
+      author: prev.author || getCurrentUser()
+    }));
     
     // 如果代码发生变化，重新解析参数
     if (changedValues.code) {
@@ -305,7 +337,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -344,11 +376,16 @@ const AdminTemplateEdit = () => {
       
       console.log('准备保存的草稿数据:', values);
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
       const draftData = {
         ...values,
-        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
-        status: 'draft'
+        // 确保category是字符串格式，适合MongoDB ObjectId
+        category: typeof values.categories === 'string' ? values.categories : 
+                  (typeof values.categories === 'object' ? 
+                    (values.categories.id || values.categories._id || String(values.categories)) : 
+                    String(values.categories || '')),
+        status: 'draft',
+        author: values.author || getCurrentUser() // 添加author字段
       };
       
       console.log('提交给API的数据:', draftData);
@@ -358,33 +395,12 @@ const AdminTemplateEdit = () => {
           await templateAPI.updateTemplate(templateId, draftData);
         } catch (error) {
           console.error('更新模板API调用失败:', error.response || error);
-          // 如果第一次失败，尝试使用更简化的数据结构
-          const simplifiedData = {
-            name: draftData.name,
-            description: draftData.description,
-            coverImage: draftData.coverImage, // 包含coverImage字段
-            category: draftData.category, // 包含category字段
-            code: draftData.code || '', // 包含code字段，这是必填项
-            status: 'draft'
-          };
-          console.log('尝试使用简化数据再次提交:', simplifiedData);
-          await templateAPI.updateTemplate(templateId, simplifiedData);
         }
       } else {
         try {
           await templateAPI.createTemplate(draftData);
         } catch (error) {
           console.error('创建模板API调用失败:', error.response || error);
-          // 如果第一次失败，尝试使用更简化的数据结构
-          const simplifiedData = {
-            name: draftData.name,
-            description: draftData.description,
-            category: draftData.category, // 包含category字段
-            code: draftData.code || '', // 包含code字段，这是必填项
-            status: 'draft'
-          };
-          console.log('尝试使用简化数据创建模板:', simplifiedData);
-          await templateAPI.createTemplate(simplifiedData);
         }
       }
       
@@ -405,7 +421,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -443,11 +459,16 @@ const AdminTemplateEdit = () => {
       };
       
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
       const reviewData = {
         ...values,
-        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
-        status: 'reviewing'
+        // 确保category是字符串格式，适合MongoDB ObjectId
+        category: typeof values.categories === 'string' ? values.categories : 
+                  (typeof values.categories === 'object' ? 
+                    (values.categories.id || values.categories._id || String(values.categories)) : 
+                    String(values.categories || '')),
+        status: 'reviewing',
+        author: values.author || getCurrentUser() // 添加author字段
       };
       
       console.log('提交给API的数据:', reviewData);
@@ -464,7 +485,8 @@ const AdminTemplateEdit = () => {
             coverImage: reviewData.coverImage, // 包含coverImage字段
             category: reviewData.category, // 包含category字段
             code: reviewData.code || '', // 包含code字段，这是必填项
-            status: 'reviewing'
+            status: 'reviewing',
+            author: reviewData.author || getCurrentUser() // 添加author字段
           };
           console.log('尝试使用简化数据再次提交:', simplifiedData);
           await templateAPI.updateTemplate(templateId, simplifiedData);
@@ -481,7 +503,8 @@ const AdminTemplateEdit = () => {
             category: reviewData.category, // 包含category字段
             code: reviewData.code || '', // 包含code字段，这是必填项
             coverImage: reviewData.coverImage,
-            status: 'reviewing'
+            status: 'reviewing',
+            author: reviewData.author || getCurrentUser() // 添加author字段
           };
           console.log('尝试使用简化数据再次提交:', simplifiedData);
           await templateAPI.createTemplate(simplifiedData);
@@ -505,7 +528,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -543,11 +566,16 @@ const AdminTemplateEdit = () => {
       };
       
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
       const publishData = {
         ...values,
-        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
-        status: 'published'
+        // 确保category是字符串格式，适合MongoDB ObjectId
+        category: typeof values.categories === 'string' ? values.categories : 
+                  (typeof values.categories === 'object' ? 
+                    (values.categories.id || values.categories._id || String(values.categories)) : 
+                    String(values.categories || '')),
+        status: 'published',
+        author: values.author || getCurrentUser() // 添加author字段
       };
       
       console.log('提交给API的数据:', publishData);
@@ -564,7 +592,8 @@ const AdminTemplateEdit = () => {
             coverImage: publishData.coverImage, // 包含coverImage字段
             category: publishData.category, // 包含category字段
             code: publishData.code || '', // 包含code字段，这是必填项
-            status: 'published'
+            status: 'published',
+            author: publishData.author || getCurrentUser() // 添加author字段
           };
           console.log('尝试使用简化数据再次提交:', simplifiedData);
           await templateAPI.updateTemplate(templateId, simplifiedData);
@@ -581,7 +610,8 @@ const AdminTemplateEdit = () => {
             category: publishData.category, // 包含category字段
             code: publishData.code || '', // 包含code字段，这是必填项
             coverImage: publishData.coverImage,
-            status: 'published'
+            status: 'published',
+            author: publishData.author || getCurrentUser() // 添加author字段
           };
           console.log('尝试使用简化数据再次提交:', simplifiedData);
           await templateAPI.createTemplate(simplifiedData);

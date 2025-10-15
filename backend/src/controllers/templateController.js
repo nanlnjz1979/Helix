@@ -89,7 +89,7 @@ const getTemplateById = async (req, res) => {
     }
     
     // 检查权限：管理员或模板作者可以查看所有模板，其他用户只能查看已发布的模板
-    if (req.user.role !== 'admin' && template.author.toString() !== req.user._id.toString() && template.status !== 'published') {
+    if (req.user.role !== 'admin' && template.author.toString() !== req.user.id.toString() && template.status !== 'published') {
       return res.status(403).json({ message: '无权限查看该模板' });
     }
     
@@ -115,7 +115,7 @@ const createTemplate = async (req, res) => {
     if (!categoryExists) {
       return res.status(400).json({ message: '指定的策略类型不存在' });
     }
-    
+
     // 自动设置来源：管理员用户创建的模板默认为官方，其他用户创建的为用户分享
     const source = req.user.role === 'admin' ? 'official' : 'user';
     
@@ -126,7 +126,7 @@ const createTemplate = async (req, res) => {
       detailedDescription,
       category,
       version: version || '1.0.0',
-      author: req.user._id,
+      author: req.user.id,
       source,
       code,
       params: params || [],
@@ -138,7 +138,7 @@ const createTemplate = async (req, res) => {
       price: price || 0,
       status: source === 'official' ? 'published' : 'reviewing' // 官方模板直接发布，用户模板需要审核
     });
-    
+    console.error('------------------创建模板请求体--------3--------:', template);
     await template.save();
     
     // 更新策略类型的模板数量
