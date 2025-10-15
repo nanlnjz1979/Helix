@@ -21,6 +21,10 @@ try {
         required: true,
         trim: true
       },
+      detailedDescription: {
+        type: String,
+        trim: true
+      },
       category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
@@ -47,7 +51,7 @@ try {
       },
       status: {
         type: String,
-        enum: ['published', 'reviewing', 'rejected', 'offline'],
+        enum: ['published', 'reviewing', 'rejected', 'offline', 'draft'],
         default: 'reviewing'
       },
       isPaid: {

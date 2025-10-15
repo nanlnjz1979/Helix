@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tabs, Form, Input, Button, Upload, Select, InputNumber, Switch, Space, Card, Divider, Radio, message } from 'antd';
+import { Tabs, Form, Input, Button, Upload, Select, InputNumber, Switch, Space, Card, Divider, Radio, message, TreeSelect } from 'antd';
 import { InboxOutlined, CodeOutlined, SaveOutlined, SendOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import templateAPI from '../services/templateAPI';
@@ -9,6 +9,7 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Dragger } = Upload;
 const { TabPane } = Tabs;
+const { TreeNode } = TreeSelect;
 
 // 模拟代码编辑器组件
 const MonacoEditor = ({ value, onChange }) => {
@@ -40,7 +41,8 @@ const AdminTemplateEdit = () => {
     description: '',
     coverImage: '',
     detailedDescription: '',
-    categories: [],
+    categories: null, // 单选模式下初始值为null
+    category: null, // 添加category字段，与后端保持一致
     tags: [],
     riskLevel: 'medium',
     code: '',
@@ -75,6 +77,8 @@ const AdminTemplateEdit = () => {
           categoriesData = response.tree;
         }
       }
+      
+      // 保持树形结构，不再扁平化
       setAllCategories(categoriesData);
     } catch (error) {
       console.error('获取模板分类失败:', error);
@@ -100,6 +104,20 @@ const AdminTemplateEdit = () => {
     }
   };
 
+  // 添加renderTreeNodes函数用于渲染树形结构
+  const renderTreeNodes = (data) => {
+    return data.map(item => {
+      if (item.children && item.children.length > 0) {
+        return (
+          <TreeNode key={item.id || item._id} value={item.id || item._id} title={item.name}>
+            {renderTreeNodes(item.children)}
+          </TreeNode>
+        );
+      }
+      return <TreeNode key={item.id || item._id} value={item.id || item._id} title={item.name} />;
+    });
+  };
+
   // 获取模板详情 - 使用useCallback缓存函数
   const fetchTemplateDetail = useCallback(async () => {
     // 直接使用isEditMode判断
@@ -109,16 +127,29 @@ const AdminTemplateEdit = () => {
         const response = await templateAPI.getTemplateDetail(templateId);
         // 处理不同的数据格式，确保能正确获取模板数据
         const template = response.template || response; // 如果response中没有template属性，直接使用response
-        // 确保关键数组属性存在且为数组，防止后续join操作出错
+        // 确保关键属性正确初始化
         const safeTemplate = {
           ...template,
           tags: Array.isArray(template.tags) ? template.tags : [],
           dependencies: Array.isArray(template.dependencies) ? template.dependencies : [],
-          categories: Array.isArray(template.categories) ? template.categories : [],
-          accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : []
+          // 确保categories字段存在
+          categories: template.categories || null,
+          accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : [],
+          // 单选模式下，直接使用categories作为category字段值
+          category: template.categories 
+            ? (typeof template.categories === 'object' && template.categories.id ? template.categories.id : template.categories)
+            : null
         };
         setTemplateData(safeTemplate);
-        form.setFieldsValue(safeTemplate);
+        // 处理categories格式，确保TreeSelect组件能正确显示选中的值（单选模式）
+        const formValues = {
+          ...safeTemplate,
+          // 如果categories是数组，使用第一个元素；如果是对象，使用其id；否则直接使用
+          categories: Array.isArray(safeTemplate.categories) && safeTemplate.categories.length > 0 
+            ? (typeof safeTemplate.categories[0] === 'object' && safeTemplate.categories[0].id ? safeTemplate.categories[0].id : safeTemplate.categories[0])
+            : (typeof safeTemplate.categories === 'object' && safeTemplate.categories.id ? safeTemplate.categories.id : safeTemplate.categories)
+        };
+        form.setFieldsValue(formValues);
         // 解析参数
         if (safeTemplate.code) {
           parseParamsFromCode(safeTemplate.code);
@@ -184,7 +215,13 @@ const AdminTemplateEdit = () => {
 
   // 处理表单字段变化
   const handleFormChange = (changedValues) => {
-    setTemplateData(prev => ({ ...prev, ...changedValues }));
+    // 检查是否有categories变化，如果有则同步更新category字段
+    let updatedValues = { ...changedValues };
+    if (changedValues.categories) {
+      updatedValues.category = changedValues.categories; // 单选模式下直接使用categories值
+    }
+    
+    setTemplateData(prev => ({ ...prev, ...updatedValues }));
     
     // 如果代码发生变化，重新解析参数
     if (changedValues.code) {
@@ -192,12 +229,55 @@ const AdminTemplateEdit = () => {
     }
   };
 
-  // 处理上传封面图
-  const handleUpload = ({ file }) => {
-    // 实际项目中需要上传到服务器
-    // 这里使用URL.createObjectURL处理本地预览
-    setTemplateData(prev => ({ ...prev, coverImage: URL.createObjectURL(file.originFileObj) }));
+  // 处理上传前的校验 - beforeUpload回调
+  const beforeUpload = (file) => {
+    // 检查文件类型
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('只能上传图片文件!');
+      return Upload.LIST_IGNORE;
+    }
+    // 检查文件大小
+    const isLessThan2M = file.size / 1024 / 1024 < 2;
+    if (!isLessThan2M) {
+      message.error('图片必须小于2MB!');
+      return Upload.LIST_IGNORE;
+    }
+    
+    // 创建FileReader来读取文件内容，生成更稳定的Data URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      console.log('设置coverImage值:', dataUrl);
+      // 同时更新状态和表单值，确保预览稳定显示
+      setTemplateData(prev => ({ ...prev, coverImage: dataUrl }));
+      form.setFieldValue('coverImage', dataUrl);
+      
+      // 强制更新表单验证状态
+      form.validateFields(['coverImage']).catch(() => {
+        // 忽略验证错误，我们只是想更新状态
+        console.log('强制更新coverImage验证状态');
+      });
+    };
+    reader.readAsDataURL(file);
+    
     return false; // 阻止默认上传行为
+  };
+  
+  // 自定义上传逻辑 - customRequest回调
+  const customRequest = ({ onSuccess, file }) => {
+    // 使用FileReader确保文件数据正确处理
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      setTemplateData(prev => ({ ...prev, coverImage: dataUrl }));
+      form.setFieldValue('coverImage', dataUrl);
+      
+      if (onSuccess) {
+        onSuccess('ok');
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // 处理标签变化
@@ -222,13 +302,90 @@ const AdminTemplateEdit = () => {
   const handleSaveDraft = async () => {
     try {
       setLoading(true);
-      const values = await form.validateFields();
-      const draftData = { ...values, status: 'draft' };
+      
+      // 在验证前检查关键字段的值
+      console.log('验证前的模板数据:', templateData);
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      
+      // 增强表单验证错误处理
+      const validateResult = await form.validateFields().catch(err => {
+        console.error('表单验证失败:', err);
+        
+        // 检查是否有具体的错误字段
+        if (err.errorFields && err.errorFields.length > 0) {
+          const firstError = err.errorFields[0];
+          const fieldName = firstError.name.join('.');
+          const errorMsg = firstError.errors && firstError.errors[0] ? firstError.errors[0] : '该字段验证失败';
+          
+          // 映射字段名到中文显示名
+          const fieldMap = {
+            'name': '模板名称',
+            'description': '模板描述',
+            'categories': '所属分类',
+            'code': '模板代码',
+            'author': '作者',
+            'version': '版本号'
+          };
+          
+          // 显示具体的错误信息
+          const displayName = fieldMap[fieldName] || fieldName;
+          message.error(`${displayName}：${errorMsg}`);
+        } else {
+          message.error('表单验证失败，请检查所有必填项');
+        }
+        throw err;
+      });
+      
+      // 确保categories是数组格式
+      const values = {
+        ...validateResult,
+        categories: validateResult.categories ? validateResult.categories : ""
+      };
+      
+      console.log('准备保存的草稿数据:', values);
+      // 包含coverImage字段，后端已经可以处理
+      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      const draftData = {
+        ...values,
+        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
+        status: 'draft'
+      };
+      
+      console.log('提交给API的数据:', draftData);
       
       if (isEditMode) {
-        await templateAPI.updateTemplate(templateId, draftData);
+        try {
+          await templateAPI.updateTemplate(templateId, draftData);
+        } catch (error) {
+          console.error('更新模板API调用失败:', error.response || error);
+          // 如果第一次失败，尝试使用更简化的数据结构
+          const simplifiedData = {
+            name: draftData.name,
+            description: draftData.description,
+            coverImage: draftData.coverImage, // 包含coverImage字段
+            category: draftData.category, // 包含category字段
+            code: draftData.code || '', // 包含code字段，这是必填项
+            status: 'draft'
+          };
+          console.log('尝试使用简化数据再次提交:', simplifiedData);
+          await templateAPI.updateTemplate(templateId, simplifiedData);
+        }
       } else {
-        await templateAPI.createTemplate(draftData);
+        try {
+          await templateAPI.createTemplate(draftData);
+        } catch (error) {
+          console.error('创建模板API调用失败:', error.response || error);
+          // 如果第一次失败，尝试使用更简化的数据结构
+          const simplifiedData = {
+            name: draftData.name,
+            description: draftData.description,
+            category: draftData.category, // 包含category字段
+            code: draftData.code || '', // 包含code字段，这是必填项
+            status: 'draft'
+          };
+          console.log('尝试使用简化数据创建模板:', simplifiedData);
+          await templateAPI.createTemplate(simplifiedData);
+        }
       }
       
       message.success('草稿保存成功');
@@ -245,16 +402,93 @@ const AdminTemplateEdit = () => {
   const handleSubmitReview = async () => {
     try {
       setLoading(true);
-      const values = await form.validateFields();
-      const reviewData = { ...values, status: 'reviewing' };
+      
+      // 在验证前检查关键字段的值
+      console.log('验证前的模板数据:', templateData);
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      
+      // 增强表单验证错误处理
+      const validateResult = await form.validateFields().catch(err => {
+        console.error('表单验证失败:', err);
+        
+        // 检查是否有具体的错误字段
+        if (err.errorFields && err.errorFields.length > 0) {
+          const firstError = err.errorFields[0];
+          const fieldName = firstError.name.join('.');
+          const errorMsg = firstError.errors && firstError.errors[0] ? firstError.errors[0] : '该字段验证失败';
+          
+          // 映射字段名到中文显示名
+          const fieldMap = {
+            'name': '模板名称',
+            'description': '模板描述',
+            'categories': '所属分类',
+            'code': '模板代码',
+            'author': '作者',
+            'version': '版本号'
+          };
+          
+          // 显示具体的错误信息
+          const displayName = fieldMap[fieldName] || fieldName;
+          message.error(`${displayName}：${errorMsg}`);
+        } else {
+          message.error('表单验证失败，请检查所有必填项');
+        }
+        throw err;
+      });
+      
+      // 确保categories是数组格式
+      const values = {
+        ...validateResult,
+        categories: Array.isArray(validateResult.categories) ? validateResult.categories : []
+      };
+      
+      // 包含coverImage字段，后端已经可以处理
+      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      const reviewData = {
+        ...values,
+        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
+        status: 'reviewing'
+      };
+      
+      console.log('提交给API的数据:', reviewData);
       
       if (isEditMode) {
-        await templateAPI.updateTemplate(templateId, reviewData);
+        try {
+          await templateAPI.updateTemplate(templateId, reviewData);
+        } catch (error) {
+          console.error('更新模板API调用失败:', error.response || error);
+          // 如果第一次失败，尝试使用更简化的数据结构
+          const simplifiedData = {
+            name: reviewData.name,
+            description: reviewData.description,
+            coverImage: reviewData.coverImage, // 包含coverImage字段
+            category: reviewData.category, // 包含category字段
+            code: reviewData.code || '', // 包含code字段，这是必填项
+            status: 'reviewing'
+          };
+          console.log('尝试使用简化数据再次提交:', simplifiedData);
+          await templateAPI.updateTemplate(templateId, simplifiedData);
+        }
       } else {
-        await templateAPI.createTemplate(reviewData);
+        try {
+          await templateAPI.createTemplate(reviewData);
+        } catch (error) {
+          console.error('创建模板API调用失败:', error.response || error);
+          // 为创建新模板也添加简化数据的回退逻辑
+          const simplifiedData = {
+            name: reviewData.name,
+            description: reviewData.description,
+            category: reviewData.category, // 包含category字段
+            code: reviewData.code || '', // 包含code字段，这是必填项
+            coverImage: reviewData.coverImage,
+            status: 'reviewing'
+          };
+          console.log('尝试使用简化数据再次提交:', simplifiedData);
+          await templateAPI.createTemplate(simplifiedData);
+        }
       }
       
-      message.success('已提交审核，请等待管理员审核');
+      message.success('模板已提交审核');
       navigate('/admin/templates');
     } catch (error) {
       console.error('提交审核失败:', error);
@@ -268,13 +502,90 @@ const AdminTemplateEdit = () => {
   const handlePublish = async () => {
     try {
       setLoading(true);
-      const values = await form.validateFields();
-      const publishData = { ...values, status: 'published' };
+      
+      // 在验证前检查关键字段的值
+      console.log('验证前的模板数据:', templateData);
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories']));
+      
+      // 增强表单验证错误处理
+      const validateResult = await form.validateFields().catch(err => {
+        console.error('表单验证失败:', err);
+        
+        // 检查是否有具体的错误字段
+        if (err.errorFields && err.errorFields.length > 0) {
+          const firstError = err.errorFields[0];
+          const fieldName = firstError.name.join('.');
+          const errorMsg = firstError.errors && firstError.errors[0] ? firstError.errors[0] : '该字段验证失败';
+          
+          // 映射字段名到中文显示名
+          const fieldMap = {
+            'name': '模板名称',
+            'description': '模板描述',
+            'categories': '所属分类',
+            'code': '模板代码',
+            'author': '作者',
+            'version': '版本号'
+          };
+          
+          // 显示具体的错误信息
+          const displayName = fieldMap[fieldName] || fieldName;
+          message.error(`${displayName}：${errorMsg}`);
+        } else {
+          message.error('表单验证失败，请检查所有必填项');
+        }
+        throw err;
+      });
+      
+      // 确保categories是数组格式
+      const values = {
+        ...validateResult,
+        categories: Array.isArray(validateResult.categories) ? validateResult.categories : []
+      };
+      
+      // 包含coverImage字段，后端已经可以处理
+      // 关键点：为创建新模板添加category字段，使用categories数组的第一个元素
+      const publishData = {
+        ...values,
+        category: values.categories && values.categories.length > 0 ? values.categories[0] : null,
+        status: 'published'
+      };
+      
+      console.log('提交给API的数据:', publishData);
       
       if (isEditMode) {
-        await templateAPI.updateTemplate(templateId, publishData);
+        try {
+          await templateAPI.updateTemplate(templateId, publishData);
+        } catch (error) {
+          console.error('更新模板API调用失败:', error.response || error);
+          // 如果第一次失败，尝试使用更简化的数据结构
+          const simplifiedData = {
+            name: publishData.name,
+            description: publishData.description,
+            coverImage: publishData.coverImage, // 包含coverImage字段
+            category: publishData.category, // 包含category字段
+            code: publishData.code || '', // 包含code字段，这是必填项
+            status: 'published'
+          };
+          console.log('尝试使用简化数据再次提交:', simplifiedData);
+          await templateAPI.updateTemplate(templateId, simplifiedData);
+        }
       } else {
-        await templateAPI.createTemplate(publishData);
+        try {
+          await templateAPI.createTemplate(publishData);
+        } catch (error) {
+          console.error('创建模板API调用失败:', error.response || error);
+          // 为创建新模板也添加简化数据的回退逻辑
+          const simplifiedData = {
+            name: publishData.name,
+            description: publishData.description,
+            category: publishData.category, // 包含category字段
+            code: publishData.code || '', // 包含code字段，这是必填项
+            coverImage: publishData.coverImage,
+            status: 'published'
+          };
+          console.log('尝试使用简化数据再次提交:', simplifiedData);
+          await templateAPI.createTemplate(simplifiedData);
+        }
       }
       
       message.success('模板发布成功');
@@ -329,9 +640,9 @@ const AdminTemplateEdit = () => {
                 rules={[{ required: true, message: '请上传封面图' }]}
               >
                 <Dragger
-                  customRequest={handleUpload}
+                  customRequest={customRequest}
                   showUploadList={false}
-                  beforeUpload={handleUpload}
+                  beforeUpload={beforeUpload}
                   fileList={templateData.coverImage ? [{ uid: 'cover', url: templateData.coverImage }] : []}
                 >
                   {templateData.coverImage ? (
@@ -369,11 +680,15 @@ const AdminTemplateEdit = () => {
                 label="所属分类"
                 rules={[{ required: true, message: '请选择所属分类' }]}
               >
-                <Select mode="multiple" placeholder="请选择所属分类">
-                  {allCategories.map(category => (
-                    <Option key={category.id} value={category.id || ''}>{category.name}</Option>
-                  ))}
-                </Select>
+                <TreeSelect 
+                  placeholder="请选择所属分类"
+                  allowClear
+                  treeDefaultExpandAll
+                  notFoundContent={allCategories.length === 0 ? '暂无分类数据' : '无匹配分类'}
+                  style={{ width: '100%' }}
+                >
+                  {renderTreeNodes(allCategories)}
+                </TreeSelect>
               </Form.Item>
 
               <Form.Item

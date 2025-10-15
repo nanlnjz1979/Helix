@@ -119,4 +119,4 @@ const testHtmlContent = `<!DOCTYPE html>
 
 fs.writeFileSync(testHtmlPath, testHtmlContent);
 console.log(`\n已创建测试页面: ${testHtmlPath}`);
-console.log(`请访问 http://localhost:3001/test-resources.html 进行资源加载测试`);
+console.log(`请访问 http://localhost:5000/test-resources.html 进行资源加载测试`);

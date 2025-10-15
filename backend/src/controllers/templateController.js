@@ -103,7 +103,7 @@ const getTemplateById = async (req, res) => {
 // 创建新模板
 const createTemplate = async (req, res) => {
   try {
-    const { name, description, category, version, code, params, metadata, settings, thumbnail, riskLevel, isPaid, price } = req.body;
+    const { name, description, detailedDescription, category, version, code, params, metadata, settings, thumbnail, coverImage, riskLevel, isPaid, price } = req.body;
     
     // 验证必填字段
     if (!name || !description || !category || !code) {
@@ -123,6 +123,7 @@ const createTemplate = async (req, res) => {
     const template = new Template({
       name,
       description,
+      detailedDescription,
       category,
       version: version || '1.0.0',
       author: req.user._id,
@@ -131,7 +132,7 @@ const createTemplate = async (req, res) => {
       params: params || [],
       metadata: metadata || {},
       settings: settings || {},
-      thumbnail: thumbnail || '',
+      thumbnail: coverImage || thumbnail || '', // 优先使用coverImage
       riskLevel: riskLevel || 'medium',
       isPaid: isPaid || false,
       price: price || 0,
@@ -189,6 +190,11 @@ const updateTemplate = async (req, res) => {
           $inc: { templateCount: 1 }
         });
       }
+    }
+    
+    // 处理coverImage字段，如果存在则将其值赋给thumbnail
+    if (updates.coverImage !== undefined) {
+      updates.thumbnail = updates.coverImage;
     }
     
     // 更新模板信息
