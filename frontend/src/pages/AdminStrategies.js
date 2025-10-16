@@ -163,12 +163,7 @@ const AdminStrategies = () => {
         </Tag>
       )
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: date => new Date(date).toLocaleString()
-    },
+    {      title: '创建时间',      dataIndex: 'createdAt',      key: 'createdAt',      render: date => {        if (!date) return '-';        const dateObj = new Date(date);        return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleString();      }    },
     {
       title: '操作',
       key: 'action',

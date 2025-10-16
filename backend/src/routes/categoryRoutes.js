@@ -158,10 +158,11 @@ router.get('/categories/:categoryId/strategies', auth, async (req, res) => {
   // 检查类别权限
   try {
     const category = await categoryController.getCategoryById({ params: { id: req.params.categoryId } }, res, true);
+  
     if (!category) {
       return res.status(404).json({ message: '类别不存在' });
     }
-    
+    //console.log('--------002----------:',req.params.categoryId);
     // 检查是否有权限查看该类别下的策略
     if (category.visibility === 'private' && category.owner.toString() !== req.user.id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ message: '无权限查看该私有类别下的策略' });

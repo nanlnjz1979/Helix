@@ -4,14 +4,12 @@ import {
   Button,
   Typography,
   Tag,
-  List,
   Empty,
   message,
   Spin,
   Row,
   Col,
   Statistic,
-  Divider,
   Table,
   Space,
   Modal,
@@ -27,11 +25,7 @@ import {
   ArrowLeftOutlined,
   ArrowUpOutlined,
   PlusOutlined,
-  LinkOutlined,
-  FilterOutlined,
-  BarChartOutlined,
-  HistoryOutlined,
-  SettingOutlined
+  LinkOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
@@ -39,7 +33,6 @@ import categoryAPI from '../services/categoryAPI';
 import api from '../services/api';
 
 const {
-  Title,
   Text,
   Paragraph
 } = Typography;
@@ -66,7 +59,9 @@ const AdminCategoryDetails = () => {
     setLoading(true);
     try {
       const data = await categoryAPI.getCategoryById(categoryId);
-      setCategory(data);
+      console.log('API返回的类别数据:', data.category);
+      console.log('description字段值:', data.category.description, '类型:', typeof data.category.description);
+      setCategory(data.category);
     } catch (error) {
       message.error('获取类别详情失败：' + (error.response?.data?.message || error.message));
       navigate('/admin/categories');
@@ -80,11 +75,17 @@ const AdminCategoryDetails = () => {
     setStrategyLoading(true);
     try {
       const data = await categoryAPI.getStrategiesByCategory(categoryId);
-      setStrategies(data);
+      // 确保strategies是数组
+      const strategiesArray = Array.isArray(data) ? data : [];
+      console.log('获取的策略数据:', strategiesArray);
+      setStrategies(strategiesArray);
       // 计算策略绩效数据
-      calculatePerformanceData(data);
+      calculatePerformanceData(strategiesArray);
     } catch (error) {
+      console.error('获取策略列表失败:', error);
       message.error('获取策略列表失败：' + (error.response?.data?.message || error.message));
+      // 出错时设置空数组，避免后续渲染错误
+      setStrategies([]);
     } finally {
       setStrategyLoading(false);
     }
@@ -94,23 +95,26 @@ const AdminCategoryDetails = () => {
 
   // 计算绩效数据
   const calculatePerformanceData = (strategies) => {
-    if (!strategies || strategies.length === 0) {
+    // 确保strategies是数组
+    const strategiesArray = Array.isArray(strategies) ? strategies : [];
+    
+    if (!strategiesArray || strategiesArray.length === 0) {
       setPerformanceData({});
       return;
     }
 
     // 简单计算示例 - 根据实际数据结构调整
-    const totalReturn = strategies.reduce((sum, strategy) => {
+    const totalReturn = strategiesArray.reduce((sum, strategy) => {
       const returnValue = strategy.performance?.totalReturn || 0;
       return sum + returnValue;
     }, 0);
 
-    const avgReturn = totalReturn / strategies.length;
-    const activeStrategies = strategies.filter(s => s.status === 'active').length;
-    const avgDrawdown = strategies.reduce((sum, strategy) => {
+    const avgReturn = totalReturn / strategiesArray.length;
+    const activeStrategies = strategiesArray.filter(s => s.status === 'active').length;
+    const avgDrawdown = strategiesArray.reduce((sum, strategy) => {
       const drawdown = strategy.performance?.maxDrawdown || 0;
       return sum + drawdown;
-    }, 0) / strategies.length;
+    }, 0) / strategiesArray.length;
 
     // 构建图表数据
     const performanceChart = {
@@ -140,13 +144,13 @@ const AdminCategoryDetails = () => {
       },
       yAxis: {
         type: 'category',
-        data: strategies.slice(0, 10).map(s => s.name)
+        data: strategiesArray.slice(0, 10).map(s => s.name)
       },
       series: [
         {
           name: '年化收益率',
           type: 'bar',
-          data: strategies.slice(0, 10).map(s => (s.performance?.annualReturn || 0).toFixed(2)),
+          data: strategiesArray.slice(0, 10).map(s => (s.performance?.annualReturn || 0).toFixed(2)),
           itemStyle: {
             color: '#52c41a'
           }
@@ -154,7 +158,7 @@ const AdminCategoryDetails = () => {
         {
           name: '最大回撤',
           type: 'bar',
-          data: strategies.slice(0, 10).map(s => (s.performance?.maxDrawdown || 0).toFixed(2)),
+          data: strategiesArray.slice(0, 10).map(s => (s.performance?.maxDrawdown || 0).toFixed(2)),
           itemStyle: {
             color: '#ff4d4f'
           }
@@ -246,24 +250,6 @@ const AdminCategoryDetails = () => {
     }
   };
 
-  // 获取所有顶级类别（parent==null）
-  const fetchTopLevelCategories = async () => {
-    try {
-      const allCategories = await categoryAPI.getAllCategories();
-      // 过滤出 parent==null 的顶级类别+
-
-
-      
-      const topCategories = allCategories.filter(cat => 
-        cat.parent === null && cat._id !== categoryId
-      );
-      setTopLevelCategories(topCategories);
-    } catch (error) {
-      console.error('获取顶级类别失败:', error);
-      message.error('加载父类别列表失败');
-    }
-  };
-
   // 打开编辑模态框
   const showEditModal = async () => {
     editForm.setFieldsValue({
@@ -337,10 +323,14 @@ const AdminCategoryDetails = () => {
       )
     },
     {
-      title: '类型',
-      dataIndex: 'type',
+      title: '策略类型',
+      dataIndex: ['type', 'name'],
       key: 'type',
-      render: type => <Tag color="blue">{type}</Tag>
+      render: (typeName, record) => {
+        // 支持多种数据格式
+        const displayType = typeName || record.type || '未知';
+        return <Tag color="blue">{displayType}</Tag>;
+      }
     },
     {
       title: '状态',
@@ -359,6 +349,16 @@ const AdminCategoryDetails = () => {
       dataIndex: ['user', 'username'],
       key: 'username',
       render: username => username || '未知'
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: date => {
+        if (!date) return '-';
+        const dateObj = new Date(date);
+        return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleString();
+      }
     },
     {
       title: '年化收益',
@@ -472,7 +472,7 @@ const AdminCategoryDetails = () => {
       >
         <div style={{ marginBottom: 16 }}>
           <Text strong style={{ display: 'block', marginBottom: 4 }}>描述：</Text>
-          <Paragraph>{category.description || '暂无描述'}</Paragraph>
+          <Paragraph>{category.description !== undefined && category.description !== null ? category.description : '暂无描述'}</Paragraph>
         </div>
         
         <div style={{ marginBottom: 16 }}>
@@ -502,7 +502,16 @@ const AdminCategoryDetails = () => {
         
         <div>
           <Text strong style={{ display: 'block', marginBottom: 4 }}>创建时间：</Text>
-          <Text>{new Date(category.createdAt).toLocaleString()}</Text>
+          <Text>
+            {category.createdAt ? (
+              <>
+                {(() => {
+                  const dateObj = new Date(category.createdAt);
+                  return isNaN(dateObj.getTime()) ? 'Invalid Date' : dateObj.toLocaleString();
+                })()}
+              </>
+            ) : '未知'}
+          </Text>
         </div>
       </Card>
       

@@ -138,27 +138,32 @@ const AdminTemplateEdit = () => {
         // 处理不同的数据格式，确保能正确获取模板数据
         const template = response.template || response; // 如果response中没有template属性，直接使用response
         
-        // 添加日志，查看从后端获取的coverImage值
+        // 添加日志，查看从后端获取的模板数据
         console.log('从后端获取的模板数据:', template);
-        console.log('从后端获取的coverImage值:', template.thumbnail);
         
-        // 确保关键属性正确初始化
+        // 确保关键属性正确初始化，添加日期字段的安全处理
         const safeTemplate = {
           ...template,
           tags: Array.isArray(template.tags) ? template.tags : [],
           dependencies: Array.isArray(template.dependencies) ? template.dependencies : [],
           accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : [],
-          // 确保coverImage字段存在
-          coverImage: template.thumbnail || '',
-          // 直接使用template.category，确保是字符串格式的ObjectId
-          category: template.category && template.category._id ? template.category._id : template.category || null
+          // 支持多种图片字段名
+          coverImage: template.coverImage || template.thumbnail || '',
+          // 处理category字段，确保能正确显示父类别
+          category: template.category && template.category._id ? template.category._id : 
+                    (typeof template.category === 'string' ? template.category : null),
+          // 确保createdAt字段正确格式化，避免Invalid Date
+          createdAt: template.createdAt ? new Date(template.createdAt).toISOString() : ''
         };
         setTemplateData(safeTemplate);
-        // 处理categories格式，确保TreeSelect组件能正确显示选中的值（单选模式）
+        
+        // 处理表单值，确保所有字段正确映射
         const formValues = {
           ...safeTemplate,
           // 确保form中也包含author字段
-          author: safeTemplate.author || getCurrentUser()
+          author: safeTemplate.author || getCurrentUser(),
+          // 确保标签正确显示
+          tags: safeTemplate.tags.join(', ')
         };
         form.setFieldsValue(formValues);
         // 解析参数
@@ -312,8 +317,12 @@ const AdminTemplateEdit = () => {
 
   // 处理标签变化
   const handleTagsChange = (tags) => {
+    console.log('更新标签为:', tags);
     setTemplateData(prev => ({ ...prev, tags }));
   };
+
+  // 在模板详情加载时使用日期格式化
+  const safeCreatedAt = templateData.createdAt ? new Date(templateData.createdAt).toLocaleString() : '';
 
   // 处理依赖项变化
   const handleDependenciesChange = (e) => {
@@ -629,12 +638,19 @@ const AdminTemplateEdit = () => {
             {/* 基础信息标签页 */}
             <TabPane tab="基础信息" key="1">
               <Form.Item
-                name="name"
-                label="模板名称"
-                rules={[{ required: true, message: '请输入模板名称' }]}
-              >
-                <Input placeholder="请输入模板名称" />
-              </Form.Item>
+                  name="name"
+                  label="模板名称"
+                  rules={[{ required: true, message: '请输入模板名称' }]}
+                >
+                  <Input placeholder="请输入模板名称" />
+                </Form.Item>
+                
+                {/* 显示创建时间 */}
+                {isEditMode && (
+                  <Form.Item label="创建时间">
+                    <div>{safeCreatedAt || '-'}</div>
+                  </Form.Item>
+                )}
 
               <Form.Item
                 name="description"
@@ -704,13 +720,24 @@ const AdminTemplateEdit = () => {
               <Form.Item
                 name="tags"
                 label="标签"
+                getValueFromEvent={(e) => {
+                  // 从输入框中提取标签
+                  const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                  handleTagsChange(tags);
+                  return tags.join(', ');
+                }}
+                getValueProps={(value) => ({
+                  value: Array.isArray(value) ? value.join(', ') : value
+                })}
               >
                 <Input 
                   placeholder="输入标签后按回车确认"
-                  value={templateData.tags.join(', ')}
-                  onChange={(e) => {
-                    const tags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                  onPressEnter={(e) => {
+                    // 处理回车事件，添加标签
+                    const currentValue = e.target.value;
+                    const tags = currentValue.split(',').map(tag => tag.trim()).filter(tag => tag);
                     handleTagsChange(tags);
+                    // 不重置输入框，让用户可以继续添加
                   }}
                 />
               </Form.Item>

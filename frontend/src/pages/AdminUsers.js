@@ -540,7 +540,7 @@ const AdminUsers = () => {
               </Paragraph>
               <Paragraph>
                 <Text strong>状态：</Text>
-                {currentUser.status === 'active' ? (
+                {currentUser.active ? (
                   <Tag color="green">活跃</Tag>
                 ) : (
                   <Tag color="red">禁用</Tag>

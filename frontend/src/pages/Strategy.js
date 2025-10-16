@@ -8,32 +8,7 @@ const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 const Strategy = () => {
-  const [strategies, setStrategies] = useState([
-    { 
-      id: '1',
-      name: '均线交叉策略',
-      description: '当短期均线上穿长期均线时买入，下穿时卖出',
-      type: '技术指标',
-      status: '已启用',
-      createdAt: '2023-05-15'
-    },
-    {
-      id: '2',
-      name: 'RSI超买超卖策略',
-      description: '当RSI指标低于30时买入，高于70时卖出',
-      type: '技术指标',
-      status: '已启用',
-      createdAt: '2023-05-20'
-    },
-    {
-      id: '3',
-      name: '布林带突破策略',
-      description: '价格突破上轨时买入，突破下轨时卖出',
-      type: '技术指标',
-      status: '未启用',
-      createdAt: '2023-05-25'
-    }
-  ]);
+  const [strategies, setStrategies] = useState([]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isCodeModalVisible, setIsCodeModalVisible] = useState(false);
@@ -91,11 +66,7 @@ const Strategy = () => {
         </span>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-    },
+    {      title: '创建时间',      dataIndex: 'createdAt',      key: 'createdAt',      render: date => {        if (!date) return '-';        const dateObj = new Date(date);        return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleString();      }    },
     {
       title: '操作',
       key: 'action',

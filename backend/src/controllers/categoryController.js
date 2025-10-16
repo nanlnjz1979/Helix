@@ -5,7 +5,7 @@ let Strategy = null;
 let User = null;
 
 // 尝试加载真实模型
-async function loadRealModels() {
+exports.loadRealModels = async function() {
   try {
     // 确保mongoose已初始化
     if (!mongoose) {
@@ -107,7 +107,7 @@ exports.getAllCategories = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     const query = {};
@@ -165,8 +165,7 @@ exports.getAllCategories = async (req, res) => {
       categories,
       total,
       page,
-      pages: Math.ceil(total / limit),
-      mode: 'real'
+      pages: Math.ceil(total / limit)
     });
   } catch (error) {
     console.error('获取类别列表错误:', error);
@@ -175,33 +174,49 @@ exports.getAllCategories = async (req, res) => {
 };
 
 // 获取单个类别详情
-exports.getCategoryById = async (req, res) => {
+exports.getCategoryById = async (req, res, internalCall = false) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
-
-      // 验证ID格式
+    
+    // 验证ID格式
     const { id } = req.params;
     if (mongoose && mongoose.Types && typeof mongoose.Types.ObjectId.isValid === 'function') {
       if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (internalCall) {
+          console.error('无效的类别ID格式');
+          return null;
+        }
         return res.status(400).json({ message: '无效的类别ID格式' });
       }
     }
-
+    
     const category = await Category.findById(id);
-
+    
     if (!category) {
+      if (internalCall) {
+        console.error('类别不存在');
+        return null;
+      }
       return res.status(404).json({ message: '类别不存在' });
     }
- 
-    res.json({
-      category,
-      mode: 'real'
-    });
+    
+    if (internalCall) {
+      // 内部调用时返回category对象
+      return category;
+    } else {
+      // 正常API调用时发送响应
+      res.json({
+        category
+      });
+    }
   } catch (error) {
     console.error('获取类别详情错误:', error);
+    if (internalCall) {
+      return null;
+    }
     res.status(500).json({ message: '服务器错误', error: error.message });
   }
 };
@@ -211,7 +226,7 @@ exports.createCategory = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     const { name, description, parent, tags, visibility, isSystem } = req.body;
@@ -254,8 +269,7 @@ exports.createCategory = async (req, res) => {
     
     res.status(201).json({
       category: newCategory,
-      message: '类别创建成功',
-      mode: 'real'
+      message: '类别创建成功'
     });
   } catch (error) {
     console.error('创建类别错误:', error);
@@ -268,7 +282,7 @@ exports.updateCategory = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     const { name, description, parent, tags, visibility, isSystem, archived } = req.body;
@@ -332,8 +346,7 @@ exports.updateCategory = async (req, res) => {
     
     res.json({
       category,
-      message: '类别更新成功',
-      mode: 'real'
+      message: '类别更新成功'
     });
   } catch (error) {
     console.error('更新类别错误:', error);
@@ -346,7 +359,7 @@ exports.deleteCategory = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     // 查找要删除的类别
@@ -376,8 +389,7 @@ exports.deleteCategory = async (req, res) => {
 
     
     res.json({
-      message: '类别删除成功',
-      mode: 'real'
+      message: '类别删除成功'
     });
   } catch (error) {
     console.error('删除类别错误:', error);
@@ -390,7 +402,7 @@ exports.getCategoryTree = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     const query = {};
@@ -429,8 +441,7 @@ exports.getCategoryTree = async (req, res) => {
     const tree = buildTree();
     
     res.json({
-      tree,
-      mode: 'real'
+      tree
     });
   } catch (error) {
     console.error('获取类别树结构错误:', error);
@@ -443,7 +454,7 @@ exports.getCategoriesByIds = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     const { ids } = req.body;
@@ -455,11 +466,52 @@ exports.getCategoriesByIds = async (req, res) => {
     const categories = await Category.find({ _id: { $in: ids } });
     
     res.json({
-      categories,
-      mode: 'real'
+      categories
     });
   } catch (error) {
     console.error('批量获取类别错误:', error);
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+};
+
+// 根据类别获取策略
+exports.getStrategiesByCategory = async (req, res) => {
+  try {
+    // 确保模型已加载
+    if (!Strategy || !StrategyCategory || !Category) {
+      await exports.loadRealModels();
+    }
+    
+    const { categoryId } = req.params;
+    
+    // 验证类别ID
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ message: '无效的类别ID' });
+    }
+    
+    // 查找类别是否存在
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: '类别不存在' });
+    }
+    
+    // 获取与该类别关联的策略链接
+    const strategyCategoryLinks = await StrategyCategory.find({ category: categoryId });
+    const strategyIds = strategyCategoryLinks.map(link => link.strategy);
+    
+    // 获取策略详情
+    let strategies = [];
+    if (strategyIds.length > 0) {
+      strategies = await Strategy.find({ _id: { $in: strategyIds } });
+    }
+    
+    res.json({
+      strategies,
+      count: strategies.length,
+      categoryName: category.name
+    });
+  } catch (error) {
+    console.error('获取类别策略错误:', error);
     res.status(500).json({ message: '服务器错误', error: error.message });
   }
 };
@@ -469,7 +521,7 @@ exports.getCategoryStats = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     // 统计不同类型的类别数量
@@ -490,8 +542,7 @@ exports.getCategoryStats = async (req, res) => {
         archived: archivedCategories,
         root: rootCategories,
         child: childCategories
-      },
-      mode: 'real'
+      }
     });
   } catch (error) {
     console.error('获取类别统计信息错误:', error);
@@ -504,7 +555,7 @@ exports.getCategoryPerformanceComparison = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category || !Strategy || !StrategyCategory) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     // 获取所有类别
@@ -560,8 +611,7 @@ exports.getCategoryPerformanceComparison = async (req, res) => {
     performanceData.sort((a, b) => b.avgReturnRate - a.avgReturnRate);
     
     res.json({
-      performance: performanceData,
-      mode: 'real'
+      performance: performanceData
     });
   } catch (error) {
     console.error('获取类别绩效对比数据错误:', error);
@@ -574,7 +624,7 @@ exports.getCategoryStatistics = async (req, res) => {
   try {
     // 确保模型已加载
     if (!Category || !Strategy || !StrategyCategory) {
-      await loadRealModels();
+      await exports.loadRealModels();
     }
     
     // 获取类别总数
@@ -605,8 +655,7 @@ exports.getCategoryStatistics = async (req, res) => {
       totalCategories,
       totalStrategies,
       averageStrategiesPerCategory,
-      categoryDistribution,
-      mode: 'real'
+      categoryDistribution
     });
   } catch (error) {
     console.error('获取类别统计数据错误:', error);
@@ -619,34 +668,18 @@ exports.initialize = async () => {
   try {
     console.log('类别控制器初始化...');
     
-    // 尝试直接连接真实数据库并加载模型
-    try {
-      await loadRealModels();
-      // 检查Category对象是否有必要的方法
-      if (!Category || typeof Category.find !== 'function' || typeof Category.findOne !== 'function' || typeof Category.countDocuments !== 'function') {
-        console.warn('Category模型功能不完整，将创建模拟模型');
-        throw new Error('Category模型功能不完整');
-      }
-      console.log('类别控制器初始化完成 - 使用真实数据库模式');
-    } catch (modelError) {
-      console.warn('类别模型加载存在问题，将创建模拟模型以支持基本功能');
-      console.warn('模型加载错误:', modelError.message);
-      
-      // 无论Category是否存在，只要有问题就创建模拟模型
-      console.log('创建完整的模拟Category模型');
-        Category = {
-          find: async () => [],
-          findOne: async () => null,
-          countDocuments: async () => 0,
-          create: async () => null,
-          findByIdAndUpdate: async () => null,
-          findByIdAndDelete: async () => null,
-          findById: async () => null
-        };
+    // 直接连接真实数据库并加载模型
+    await exports.loadRealModels();
+    
+    // 验证模型是否正常加载
+    if (!Category || typeof Category.find !== 'function') {
+      throw new Error('Category模型未正确加载');
     }
+    
+    console.log('类别控制器初始化完成');
     
   } catch (error) {
     console.error('初始化类别控制器时出错:', error.message);
-    // 不再抛出错误，允许服务器继续运行
+    throw error; // 抛出错误以便上层处理
   }
 };

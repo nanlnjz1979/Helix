@@ -67,10 +67,10 @@ async function testModelLoading() {
     adminController.initialize();
 
     console.log('\n=== 尝试加载真实模型 ===');
-    const authLoaded = await authController.tryLoadRealModels();
+    const authLoaded = await authController.loadRealModels();
     console.log('认证控制器加载真实模型结果:', authLoaded);
     
-    const adminLoaded = await adminController.tryLoadRealModels();
+    const adminLoaded = await adminController.loadRealModels();
     console.log('管理员控制器加载真实模型结果:', adminLoaded);
 
     console.log('\n=== 测试完成 ===');
