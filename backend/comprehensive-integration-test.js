@@ -60,7 +60,7 @@ async function createTestServer() {
           tags: tags || [],
           visibility,
           isSystem,
-          owner: req.user._id,
+          owner: req.user.id,
           archived: false,
           createdAt: new Date(),
           updatedAt: new Date()

@@ -36,11 +36,11 @@ const AdminTemplateEdit = () => {
   // 定义isEditMode，检查templateId是否存在且不为空字符串
   const isEditMode = templateId && typeof templateId === 'string' && templateId.trim() !== '';
   const [activeTab, setActiveTab] = useState('1');
-  // 获取当前登录用户，这里模拟从localStorage获取，实际项目中应从认证上下文或全局状态获取
+  // 获取当前登录用户ID，这里模拟从localStorage获取，实际项目中应从认证上下文或全局状态获取
   const getCurrentUser = () => {
     try {
-      const currentUser = localStorage.getItem('currentUser') ? JSON.parse(localStorage.getItem('currentUser')) : { username: 'admin' };
-      return currentUser.username || currentUser.name || 'admin';
+      const currentUser = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : { _id: 'admin' };
+      return currentUser._id || currentUser.id || 'admin';
     } catch (error) {
       console.error('获取当前用户失败:', error);
       return 'admin';
@@ -51,8 +51,7 @@ const AdminTemplateEdit = () => {
     description: '',
     coverImage: '',
     detailedDescription: '',
-    categories: null, // 单选模式下初始值为null
-    category: null, // 添加category字段，与后端保持一致
+    category: null, // 使用category字段，与后端保持一致
     tags: [],
     riskLevel: 'medium',
     code: '',
@@ -138,27 +137,26 @@ const AdminTemplateEdit = () => {
         const response = await templateAPI.getTemplateDetail(templateId);
         // 处理不同的数据格式，确保能正确获取模板数据
         const template = response.template || response; // 如果response中没有template属性，直接使用response
+        
+        // 添加日志，查看从后端获取的coverImage值
+        console.log('从后端获取的模板数据:', template);
+        console.log('从后端获取的coverImage值:', template.thumbnail);
+        
         // 确保关键属性正确初始化
         const safeTemplate = {
           ...template,
           tags: Array.isArray(template.tags) ? template.tags : [],
           dependencies: Array.isArray(template.dependencies) ? template.dependencies : [],
-          // 确保categories字段存在
-          categories: template.category._id  || null,
           accessGroups: Array.isArray(template.accessGroups) ? template.accessGroups : [],
-          // 单选模式下，直接使用categories作为category字段值
-          category: template.categories 
-            ? (typeof template.categories === 'object' && template.categories.id ? template.categories.id : template.categories)
-            : null
+          // 确保coverImage字段存在
+          coverImage: template.thumbnail || '',
+          // 直接使用template.category，确保是字符串格式的ObjectId
+          category: template.category && template.category._id ? template.category._id : template.category || null
         };
         setTemplateData(safeTemplate);
         // 处理categories格式，确保TreeSelect组件能正确显示选中的值（单选模式）
         const formValues = {
           ...safeTemplate,
-          // 如果categories是数组，使用第一个元素；如果是对象，使用其id；否则直接使用
-          categories: Array.isArray(safeTemplate.categories) && safeTemplate.categories.length > 0 
-            ? (typeof safeTemplate.categories[0] === 'object' && safeTemplate.categories[0]._id ? safeTemplate.categories[0]._id : safeTemplate.categories[0])
-            : (typeof safeTemplate.categories === 'object' && safeTemplate.categories._id ? safeTemplate.categories._id : safeTemplate.categories),
           // 确保form中也包含author字段
           author: safeTemplate.author || getCurrentUser()
         };
@@ -337,7 +335,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'category','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -353,7 +351,7 @@ const AdminTemplateEdit = () => {
           const fieldMap = {
             'name': '模板名称',
             'description': '模板描述',
-            'categories': '所属分类',
+            'category': '所属分类',
             'code': '模板代码',
             'author': '作者',
             'version': '版本号'
@@ -368,22 +366,12 @@ const AdminTemplateEdit = () => {
         throw err;
       });
       
-      // 确保categories是数组格式
-      const values = {
-        ...validateResult,
-        categories: validateResult.categories ? validateResult.categories : ""
-      };
+      const values = { ...validateResult };
       
       console.log('准备保存的草稿数据:', values);
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
       const draftData = {
         ...values,
-        // 确保category是字符串格式，适合MongoDB ObjectId
-        category: typeof values.categories === 'string' ? values.categories : 
-                  (typeof values.categories === 'object' ? 
-                    (values.categories.id || values.categories._id || String(values.categories)) : 
-                    String(values.categories || '')),
         status: 'draft',
         author: values.author || getCurrentUser() // 添加author字段
       };
@@ -421,7 +409,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'category','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -437,7 +425,7 @@ const AdminTemplateEdit = () => {
           const fieldMap = {
             'name': '模板名称',
             'description': '模板描述',
-            'categories': '所属分类',
+            'category': '所属分类',
             'code': '模板代码',
             'author': '作者',
             'version': '版本号'
@@ -452,21 +440,17 @@ const AdminTemplateEdit = () => {
         throw err;
       });
       
-      // 确保categories是数组格式
-      const values = {
-        ...validateResult,
-        categories: Array.isArray(validateResult.categories) ? validateResult.categories : []
-      };
+      const values = { ...validateResult };
       
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
+      // 关键点：确保category是字符串格式的ObjectId
       const reviewData = {
         ...values,
         // 确保category是字符串格式，适合MongoDB ObjectId
-        category: typeof values.categories === 'string' ? values.categories : 
-                  (typeof values.categories === 'object' ? 
-                    (values.categories.id || values.categories._id || String(values.categories)) : 
-                    String(values.categories || '')),
+        category: typeof values.category === 'string' ? values.category : 
+                  (typeof values.category === 'object' ? 
+                    (values.category.id || values.category._id || String(values.category)) : 
+                    String(values.category || '')),
         status: 'reviewing',
         author: values.author || getCurrentUser() // 添加author字段
       };
@@ -528,7 +512,7 @@ const AdminTemplateEdit = () => {
       
       // 在验证前检查关键字段的值
       console.log('验证前的模板数据:', templateData);
-      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'categories','author']));
+      console.log('表单当前值:', form.getFieldsValue(['name', 'description', 'coverImage', 'detailedDescription', 'category','author']));
       
       // 增强表单验证错误处理
       const validateResult = await form.validateFields().catch(err => {
@@ -544,7 +528,7 @@ const AdminTemplateEdit = () => {
           const fieldMap = {
             'name': '模板名称',
             'description': '模板描述',
-            'categories': '所属分类',
+            'category': '所属分类',
             'code': '模板代码',
             'author': '作者',
             'version': '版本号'
@@ -559,23 +543,19 @@ const AdminTemplateEdit = () => {
         throw err;
       });
       
-      // 确保categories是数组格式
-      const values = {
-        ...validateResult,
-        categories: Array.isArray(validateResult.categories) ? validateResult.categories : []
-      };
+      const values = { ...validateResult };
       
       // 包含coverImage字段，后端已经可以处理
-      // 关键点：为创建新模板添加category字段，并确保是字符串格式的ObjectId
+      // 关键点：确保category是字符串格式的ObjectId
       const publishData = {
         ...values,
         // 确保category是字符串格式，适合MongoDB ObjectId
-        category: typeof values.categories === 'string' ? values.categories : 
-                  (typeof values.categories === 'object' ? 
-                    (values.categories.id || values.categories._id || String(values.categories)) : 
-                    String(values.categories || '')),
+        category: typeof values.category === 'string' ? values.category : 
+                  (typeof values.category === 'object' ? 
+                    (values.category.id || values.category._id || String(values.category)) : 
+                    String(values.category || '')),
         status: 'published',
-        author: values.author || getCurrentUser() // 添加author字段
+        author: values.author || getCurrentUser() // 添加author字段，使用用户ID
       };
       
       console.log('提交给API的数据:', publishData);
@@ -706,7 +686,7 @@ const AdminTemplateEdit = () => {
               </Form.Item>
 
               <Form.Item
-                name="categories"
+                name="category"
                 label="所属分类"
                 rules={[{ required: true, message: '请选择所属分类' }]}
               >

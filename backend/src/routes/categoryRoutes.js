@@ -151,10 +151,7 @@ router.post('/strategies/batch-categories', auth, async (req, res) => {
   await categoryController.batchUpdateStrategyCategories(req, res);
 });
 
-// 类别变更历史路由
-router.get('/strategies/:strategyId/category-logs', auth, async (req, res) => {
-  await categoryController.getCategoryChangeLogs(req, res);
-});
+// 策略的类别变更历史路由已删除
 
 // 按类别查询策略路由
 router.get('/categories/:categoryId/strategies', auth, async (req, res) => {

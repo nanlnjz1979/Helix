@@ -163,12 +163,11 @@ const updateTemplate = async (req, res) => {
     if (!template) {
       return res.status(404).json({ message: '模板不存在' });
     }
-    
+
     // 检查权限：只有管理员或模板作者可以更新模板
-    if (req.user.role !== 'admin' && template.author.toString() !== req.user._id.toString()) {
+    if (req.user.role !== 'admin' && template.author.toString() !== req.user.id.toString()) {
       return res.status(403).json({ message: '无权限更新该模板' });
     }
-    
     // 如果模板是官方来源，只有管理员可以修改
     if (template.source === 'official' && req.user.role !== 'admin') {
       return res.status(403).json({ message: '无权限修改官方模板' });
@@ -199,9 +198,7 @@ const updateTemplate = async (req, res) => {
     
     // 更新模板信息
     Object.assign(template, updates);
-    
     await template.save();
-    
     res.json(template);
   } catch (error) {
     console.error('更新模板失败:', error);

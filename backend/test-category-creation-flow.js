@@ -54,12 +54,12 @@ async function simulateTryLoadRealModels() {
 
     // 尝试加载其他相关模型
     const StrategyCategory = require('./src/models/StrategyCategory');
-    const CategoryChangeLog = require('./src/models/CategoryChangeLog');
+    // CategoryChangeLog已删除
     const Strategy = require('./src/models/Strategy');
     const User = require('./src/models/User');
-    log(`真实模型加载结果: Category=${!!Category}, StrategyCategory=${!!StrategyCategory}, CategoryChangeLog=${!!CategoryChangeLog}, Strategy=${!!Strategy}, User=${!!User}`);
+    log(`真实模型加载结果: Category=${!!Category}, StrategyCategory=${!!StrategyCategory}, Strategy=${!!Strategy}, User=${!!User}`);
 
-    return { success: true, models: { Category, StrategyCategory, CategoryChangeLog, Strategy, User } };
+    return { success: true, models: { Category, StrategyCategory, Strategy, User } };
   } catch (error) {
     log(`真实模型加载失败: ${error.message}`);
     return { success: false, error };

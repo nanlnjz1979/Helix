@@ -121,18 +121,7 @@ export const categoryAPI = {
     }
   },
 
-  // 获取策略类别变更历史
-  getCategoryChangeHistory: async (strategyId) => {
-    console.log('[CATEGORY API] 获取策略类别变更历史 - 策略ID:', strategyId);
-    try {
-      const response = await api.get(`/admin/strategies/${strategyId}/categories/history`);
-      console.log('[CATEGORY API] 获取策略类别变更历史成功，响应数据:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('[CATEGORY API] 获取策略类别变更历史失败:', error);
-      throw error;
-    }
-  },
+  // 策略类别变更历史API已删除
 
   // 获取类别树结构
   getCategoryTree: async () => {

@@ -52,7 +52,6 @@ const AdminCategoryDetails = () => {
   const [strategies, setStrategies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [strategyLoading, setStrategyLoading] = useState(false);
-  const [changeHistory, setChangeHistory] = useState([]);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [isAssignStrategiesModalVisible, setIsAssignStrategiesModalVisible] = useState(false);
@@ -91,28 +90,7 @@ const AdminCategoryDetails = () => {
     }
   };
 
-  // 获取类别变更历史
-  const fetchCategoryChangeHistory = async () => {
-    try {
-      // 由于我们为每个策略存储变更历史，这里我们需要获取所有关联策略的历史
-      const historyPromises = strategies.map(strategy => 
-        categoryAPI.getCategoryChangeHistory(strategy._id)
-      );
-      const histories = await Promise.all(historyPromises);
-      // 合并所有历史记录并按时间排序
-      const allHistory = histories.flat().sort((a, b) => 
-        new Date(b.createdAt) - new Date(a.createdAt)
-      );
-      // 过滤出与当前类别相关的历史记录
-      const filteredHistory = allHistory.filter(history => 
-        history.fromCategories.some(c => c._id === categoryId) ||
-        history.toCategories.some(c => c._id === categoryId)
-      );
-      setChangeHistory(filteredHistory);
-    } catch (error) {
-      console.error('获取类别变更历史失败:', error);
-    }
-  };
+  // 类别变更历史功能已删除
 
   // 计算绩效数据
   const calculatePerformanceData = (strategies) => {
@@ -444,12 +422,7 @@ const AdminCategoryDetails = () => {
     }
   }, [category]);
 
-  // 当策略加载完成后，加载历史记录
-  useEffect(() => {
-    if (strategies.length > 0) {
-      fetchCategoryChangeHistory();
-    }
-  }, [strategies]);
+  // 当策略加载完成后，无需加载历史记录（功能已删除）
 
   if (loading) {
     return (
@@ -614,48 +587,7 @@ const AdminCategoryDetails = () => {
         )}
       </Card>
       
-      {/* 变更历史 */}
-      {changeHistory.length > 0 && (
-        <Card 
-          title="类别变更历史"
-          style={{ marginTop: 16 }}
-        >
-          <List
-            itemLayout="vertical"
-            dataSource={changeHistory}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      <Text strong>策略：{item.strategy?.name || '未知策略'}</Text>
-                      <Tag color={item.changeType === 'add' ? 'green' : 'red'}>
-                        {item.changeType === 'add' ? '添加到类别' : '从类别移除'}
-                      </Tag>
-                    </Space>
-                  }
-                  description={
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Text type="secondary">
-                        操作者：{item.changedBy?.username || '系统'}
-                      </Text>
-                      <Text type="secondary">
-                        时间：{new Date(item.createdAt).toLocaleString()}
-                      </Text>
-                      {item.reason && (
-                        <div>
-                          <Text strong>原因：</Text>
-                          <Text>{item.reason}</Text>
-                        </div>
-                      )}
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
+      {/* 变更历史功能已删除 */}
 
       {/* 编辑类别模态框 */}
       <Modal

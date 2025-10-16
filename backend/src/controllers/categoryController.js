@@ -1,7 +1,6 @@
 let mongoose = null;
 let Category = null;
 let StrategyCategory = null;
-let CategoryChangeLog = null;
 let Strategy = null;
 let User = null;
 
@@ -62,9 +61,6 @@ async function loadRealModels() {
       try {
         if (!StrategyCategory) {
           StrategyCategory = mongoose.models?.StrategyCategory || require('../models/StrategyCategory');
-        }
-        if (!CategoryChangeLog) {
-          CategoryChangeLog = mongoose.models?.CategoryChangeLog || require('../models/CategoryChangeLog');
         }
         if (!Strategy) {
           Strategy = mongoose.models?.Strategy || require('../models/Strategy');
@@ -185,21 +181,21 @@ exports.getCategoryById = async (req, res) => {
     if (!Category) {
       await loadRealModels();
     }
-    
-    // 验证ID格式
+
+      // 验证ID格式
     const { id } = req.params;
     if (mongoose && mongoose.Types && typeof mongoose.Types.ObjectId.isValid === 'function') {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ message: '无效的类别ID格式' });
       }
     }
-    
+
     const category = await Category.findById(id);
-    
+
     if (!category) {
       return res.status(404).json({ message: '类别不存在' });
     }
-    
+ 
     res.json({
       category,
       mode: 'real'
@@ -254,7 +250,7 @@ exports.createCategory = async (req, res) => {
     
     await newCategory.save();
     
-    // 类别创建成功，无需记录CategoryChangeLog（该模型用于记录策略与类别关联变更）
+
     
     res.status(201).json({
       category: newCategory,
@@ -332,7 +328,7 @@ exports.updateCategory = async (req, res) => {
     
     await category.save();
     
-    // 类别更新成功，无需记录CategoryChangeLog（该模型用于记录策略与类别关联变更）
+
     
     res.json({
       category,
@@ -377,7 +373,7 @@ exports.deleteCategory = async (req, res) => {
     // 删除类别
     await Category.findByIdAndDelete(req.params.id);
     
-    // 类别删除成功，无需记录CategoryChangeLog（该模型用于记录策略与类别关联变更）
+
     
     res.json({
       message: '类别删除成功',
