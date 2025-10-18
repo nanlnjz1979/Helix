@@ -79,8 +79,9 @@ const templateRoutes = require('./routes/templateRoutes');
   
   // 只有当categoryRoutes存在时才挂载
   if (categoryRoutesModule && categoryRoutesModule.router) {
-    app.use('/api/admin', categoryRoutesModule.router); // 将类别路由挂载到admin路由下
-    console.log('类别路由已成功挂载到/admin路径');
+    app.use('/api', categoryRoutesModule.router); // 将类别路由挂载到公共API路径，允许普通用户访问受限操作
+    app.use('/api/admin', categoryRoutesModule.router); // 同时挂载到admin路径用于管理员完整操作
+    console.log('类别路由已成功挂载到/api和/admin路径');
   } else {
     console.log('类别路由模块加载失败，无法挂载');
   }

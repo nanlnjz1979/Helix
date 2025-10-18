@@ -22,14 +22,26 @@ const Strategy = () => {
     const fetchCategories = async () => {
       setLoadingCategories(true);
       try {
+        // 添加空值检查，确保categoryAPI存在且getAllCategories是函数
+        if (!categoryAPI || typeof categoryAPI.getAllCategories !== 'function') {
+          console.error('categoryAPI未正确导入或getAllCategories方法不存在');
+          setCategories([]);
+          return;
+        }
+        
         const data = await categoryAPI.getAllCategories();
+        
+        // 全面检查响应数据的有效性
+        console.log('获取到的分类数据:', data);
+        
         // 确保返回的是数组
-        const categoriesList = Array.isArray(data.categories) ? data.categories : [];
+        const categoriesList = Array.isArray(data?.categories) ? data.categories : [];
         setCategories(categoriesList);
+        
       } catch (error) {
         console.error('获取策略分类失败:', error);
-        message.error('获取策略分类失败');
-        // 不使用默认分类作为后备，保持categories为空数组
+        message.error('获取策略分类失败: ' + (error.message || '未知错误'));
+        // 出错时设置为空数组
         setCategories([]);
       } finally {
         setLoadingCategories(false);

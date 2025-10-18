@@ -48,9 +48,7 @@ router.get('/categories/tree', auth, async (req, res) => {
 // 创建新类别
 router.post('/categories', auth, async (req, res) => {
   // 检查是否为管理员或普通用户创建私有类别
-  console.log('--------0----------:',req.body);
   if (req.user.role !== 'admin' && (req.body.visibility !== 'private' || req.body.isSystem)) {
-    console.log('--------00----------:',req.user.role);
     return res.status(403).json({ message: '无权限创建公开类别或系统类别' });
   }
   

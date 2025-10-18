@@ -52,6 +52,7 @@ router.put('/templates/:id/usage', async (req, res) => {
 router.get('/templates/stats', async (req, res) => {
   // 检查是否为管理员
   if (req.user.role !== 'admin') {
+    console.error('--------050----------:');
     return res.status(403).json({ message: '无管理权限' });
   }
   

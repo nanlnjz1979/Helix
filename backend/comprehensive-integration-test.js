@@ -36,6 +36,7 @@ async function createTestServer() {
         log('Admin中间件: 管理员权限验证通过');
         next();
       } else {
+        console.log('--------040----------:');
         res.status(403).json({ message: '无管理权限' });
       }
     };

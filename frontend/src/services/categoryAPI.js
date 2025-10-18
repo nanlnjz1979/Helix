@@ -4,9 +4,9 @@ import api from './api.js';
 export const categoryAPI = {
   // 获取所有类别
   getAllCategories: async () => {
-    console.log('[CATEGORY API] 获取所有类别');
+    
     try {
-      const response = await api.get('/admin/categories');
+      const response = await api.get('/categories');
       console.log('[CATEGORY API] 获取类别成功，响应数据:', response.data);
       return response.data;
     } catch (error) {
@@ -19,7 +19,7 @@ export const categoryAPI = {
   getCategoryById: async (categoryId) => {
     console.log('[CATEGORY API] 获取类别详情 - ID:', categoryId);
     try {
-      const response = await api.get(`/admin/categories/${categoryId}`);
+      const response = await api.get(`/categories/${categoryId}`);
       console.log('[CATEGORY API] 获取类别详情成功，响应数据:', response.data);
       return response.data;
     } catch (error) {
@@ -86,7 +86,7 @@ export const categoryAPI = {
   getStrategyCategories: async (strategyId) => {
     console.log('[CATEGORY API] 获取策略的关联类别 - 策略ID:', strategyId);
     try {
-      const response = await api.get(`/admin/strategies/${strategyId}/categories`);
+      const response = await api.get(`/strategies/${strategyId}/categories`);
       console.log('[CATEGORY API] 获取策略关联类别成功，响应数据:', response.data);
       return response.data;
     } catch (error) {
@@ -99,7 +99,7 @@ export const categoryAPI = {
   getStrategiesByCategory: async (categoryId) => {
     console.log('[CATEGORY API] 按类别筛选策略 - 类别ID:', categoryId);
     try {
-      const response = await api.get(`/admin/categories/${categoryId}/strategies`);
+      const response = await api.get(`/categories/${categoryId}/strategies`);
       console.log('[CATEGORY API] 按类别筛选策略成功，响应数据:', response.data);
       return response.data;
     } catch (error) {
@@ -127,7 +127,7 @@ export const categoryAPI = {
   getCategoryTree: async () => {
     console.log('[CATEGORY API] 获取类别树结构');
     try {
-      const response = await api.get('/admin/categories/tree');
+      const response = await api.get('/categories/tree');
       console.log('[CATEGORY API] 获取类别树结构成功，响应数据:', response.data);
       return response.data;
     } catch (error) {
