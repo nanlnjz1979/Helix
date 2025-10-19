@@ -19,13 +19,10 @@ module.exports = (req, res, next) => {
     
     // 检查是否是前端生成的模拟令牌
     if (token.startsWith('mock-jwt-token-')) {
-      // 对于模拟令牌，直接解析出用户信息
-      // 这里假设模拟令牌的格式是 mock-jwt-token-<timestamp>
-      // 由于前端存储了用户信息在localStorage，这里直接设置为admin角色
-      // 注意：这只是为了开发环境测试用，生产环境应该使用真实的JWT验证
+      // 使用一个有效的MongoDB ObjectId字符串，避免模型保存时报CastError
       decoded = {
-        id: '1',
-        role: 'admin' // 前端登录使用的是admin账号，直接设置为admin角色
+        id: '000000000000000000000001',
+        role: 'admin'
       };
     } else {
       // 对于真实JWT令牌，使用jwt.verify验证

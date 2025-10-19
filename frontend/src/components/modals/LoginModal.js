@@ -26,7 +26,7 @@ const LoginModal = ({ visible, onCancel }) => {
         
         // 登录成功后在前端应用内部导航到相应的页面（根据用户角色）
         if (user.role === 'admin') {
-          navigate('/admin/dashboard');
+          navigate('/admin');
         } else {
           navigate('/dashboard');
         }

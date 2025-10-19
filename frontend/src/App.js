@@ -23,92 +23,29 @@ import AdminCategoryDetails from './pages/AdminCategoryDetails';
 import AdminTemplates from './pages/AdminTemplates';
 import AdminTemplateEdit from './pages/AdminTemplateEdit';
 import AdminTemplateReview from './pages/AdminTemplateReview';
+import StrategyCreate from './pages/StrategyCreate';
+import StrategyEdit from './pages/StrategyEdit';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
 import AdminLayout from './components/layouts/AdminLayout';
 
-// 权限控制组件 - 基础认证 - 修改为允许未登录用户查看首页部分内容
-const PrivateRoute = ({ children, requireAuth = true }) => {
-  const { isAuthenticated } = useSelector(state => state.auth);
-  console.log('PrivateRoute isAuthenticated:', isAuthenticated, 'requireAuth:', requireAuth);
-  
-  // 对于首页，允许未登录用户查看基本内容
-  if (!requireAuth) {
-    return children;
-  }
-  
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
-};
-
-// 不使用React.memo，确保组件能响应Redux状态变化
-const AuthPrivateRoute = PrivateRoute;
-
-// 管理员权限控制组件
-const AdminPrivateRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector(state => state.auth);
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (isAuthenticated && user && user.role !== 'admin') {
-    // 非管理员用户不能访问管理后台，重定向到用户仪表盘
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return children;
-};
-
-// 不使用React.memo，确保组件能响应Redux状态变化
-const AuthAdminPrivateRoute = AdminPrivateRoute;
+// 导入路由守卫组件
+import AuthPrivateRoute from './components/AuthPrivateRoute';
+import AuthAdminPrivateRoute from './components/AuthAdminPrivateRoute';
 
 function App() {
-  // 检查是否需要显示登录模态框
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('showLogin') === 'true') {
-      setTimeout(() => {
-        if (window.showLoginModal) {
-          window.showLoginModal();
-        }
-      }, 100);
-    }
-  }, []);
+  const authToken = useSelector(state => state?.auth?.token);
 
-  // 检查是否需要显示注册模态框
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('showRegister') === 'true') {
-      setTimeout(() => {
-        if (window.showRegisterModal) {
-          window.showRegisterModal();
-        }
-      }, 100);
-    }
-  }, []);
+    // 可以在此处处理全局初始化或用户状态同步
+  }, [authToken]);
 
   return (
-    <div className="App" style={{ minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
+    <div className="App">
       <Routes>
-        {/* 无需认证的路由 */}
-        <Route path="/login" element={<Navigate to="/?showLogin=true" replace />} />
-        <Route path="/register" element={
-          <React.Fragment>
-            <div style={{ display: 'none' }}>
-              <Register />
-            </div>
-            <Navigate to="/?showRegister=true" replace />
-          </React.Fragment>
-        } />
-        
-        {/* 管理员路由 - 使用精确匹配 */}
+        {/* 管理员路由 */}
         <Route path="/admin" element={
-          <AuthAdminPrivateRoute>
-            <Navigate to="/admin/dashboard" replace />
-          </AuthAdminPrivateRoute>
-        } />
-        <Route path="/admin/dashboard" element={
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminDashboard />
@@ -159,39 +96,22 @@ function App() {
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
-        <Route path="/admin/templates/create" element={
+        <Route path="/admin/templates/:templateId/edit" element={
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminTemplateEdit />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
-        <Route path="/admin/templates/edit/:id" element={
-          <AuthAdminPrivateRoute>
-            <AdminLayout>
-              <AdminTemplateEdit />
-            </AdminLayout>
-          </AuthAdminPrivateRoute>
-        } />
-        <Route path="/admin/templates/review" element={
+        <Route path="/admin/templates/:templateId/review" element={
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminTemplateReview />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
-        
-        {/* 临时添加一个无需认证的测试路由，用于调试 */}
-        <Route path="/test" element={
-          <div style={{ padding: '20px', backgroundColor: 'white', minHeight: '100vh' }}>
-            <h1>测试页面 - 这是一个无需认证的页面</h1>
-            <p>如果您能看到这个页面，说明路由系统工作正常</p>
-            <button onClick={() => window.location.href = '/'}>返回首页</button>
-          </div>
-        } />
-        
-        {/* 用户路由 - 使用精确匹配 */}
-        {/* 对于首页，设置requireAuth为false，允许未登录用户查看基本内容 */}
+
+        {/* 用户路由 */}
         <Route path="/" element={
           <AuthPrivateRoute requireAuth={false}>
             <MainLayout>
@@ -217,6 +137,20 @@ function App() {
           <AuthPrivateRoute>
             <MainLayout>
               <Strategy />
+            </MainLayout>
+          </AuthPrivateRoute>
+        } />
+        <Route path="/strategy/create" element={
+          <AuthPrivateRoute>
+            <MainLayout>
+              <StrategyCreate />
+            </MainLayout>
+          </AuthPrivateRoute>
+        } />
+        <Route path="/strategy/edit/:id" element={
+          <AuthPrivateRoute>
+            <MainLayout>
+              <StrategyEdit />
             </MainLayout>
           </AuthPrivateRoute>
         } />

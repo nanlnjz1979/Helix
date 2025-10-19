@@ -12,6 +12,9 @@ router.get('/:id', auth, strategyController.getStrategyById);
 // 创建新策略
 router.post('/', auth, strategyController.createStrategy);
 
+// 从模板克隆策略
+router.post('/clone-from-template/:templateId', auth, strategyController.cloneFromTemplate);
+
 // 更新策略
 router.put('/:id', auth, strategyController.updateStrategy);
 
