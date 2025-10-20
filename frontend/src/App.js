@@ -25,6 +25,7 @@ import AdminTemplateEdit from './pages/AdminTemplateEdit';
 import AdminTemplateReview from './pages/AdminTemplateReview';
 import StrategyCreate from './pages/StrategyCreate';
 import StrategyEdit from './pages/StrategyEdit';
+import StrategyClone from './pages/StrategyClone';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
@@ -96,6 +97,13 @@ function App() {
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
+       <Route path="/admin/templates/create" element={
+         <AuthAdminPrivateRoute>
+           <AdminLayout>
+             <AdminTemplateEdit />
+           </AdminLayout>
+         </AuthAdminPrivateRoute>
+       } />
         <Route path="/admin/templates/:templateId/edit" element={
           <AuthAdminPrivateRoute>
             <AdminLayout>
@@ -151,6 +159,13 @@ function App() {
           <AuthPrivateRoute>
             <MainLayout>
               <StrategyEdit />
+            </MainLayout>
+          </AuthPrivateRoute>
+        } />
+        <Route path="/strategy/clone" element={
+          <AuthPrivateRoute>
+            <MainLayout>
+              <StrategyClone />
             </MainLayout>
           </AuthPrivateRoute>
         } />

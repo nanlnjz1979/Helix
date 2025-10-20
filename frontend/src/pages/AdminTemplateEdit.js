@@ -31,8 +31,7 @@ const MonacoEditor = ({ value, onChange }) => {
 
 const AdminTemplateEdit = () => {
   const navigate = useNavigate();
-  const params = useParams();
-  const templateId = params.id;
+  const { templateId } = useParams();
   // 定义isEditMode，检查templateId是否存在且不为空字符串
   const isEditMode = templateId && typeof templateId === 'string' && templateId.trim() !== '';
   const [activeTab, setActiveTab] = useState('1');
@@ -378,12 +377,17 @@ const AdminTemplateEdit = () => {
       const values = { ...validateResult };
       
       console.log('准备保存的草稿数据:', values);
-      // 包含coverImage字段，后端已经可以处理
-      const draftData = {
-        ...values,
-        status: 'draft',
-        author: values.author || getCurrentUser() // 添加author字段
-      };
+
+     // 包含coverImage字段，后端已经可以处理；确保category为字符串ObjectId
+     const draftData = {
+       ...values,
+       status: 'draft',
+       author: values.author || getCurrentUser(), // 添加author字段
+       category: typeof values.category === 'string' ? values.category : 
+                 (typeof values.category === 'object' ? 
+                   (values.category.id || values.category._id || String(values.category)) : 
+                   String(values.category || ''))
+     };
       
       console.log('提交给API的数据:', draftData);
       

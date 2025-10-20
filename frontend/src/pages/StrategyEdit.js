@@ -80,7 +80,7 @@ const StrategyEdit = () => {
         form.setFieldsValue({
           name: s.name,
           description: s.description,
-          categoryId: null // 无直接类别关联，保持为空
+          categoryId: s.type || null, // 无直接类别关联，保持为空
         });
         setCode(s.code || '');
         setSelectedRootType(s.type || '');
@@ -223,9 +223,9 @@ const StrategyEdit = () => {
               <p><strong>状态：</strong>{existingStrategy?.status || '未启用'}</p>
             </Card>
             <Card title="代码预览">
-              <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: '400px', overflow: 'auto' }}>
-{code || ''}
-              </pre>
+               <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: '400px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
+ {code || ''}
+               </pre>
             </Card>
           </TabPane>
         </Tabs>

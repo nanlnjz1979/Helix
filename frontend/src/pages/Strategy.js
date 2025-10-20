@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tabs, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CodeOutlined, CopyOutlined } from '@ant-design/icons';
 import api from '../services/api';
-import templateAPI from '../services/templateAPI';
 import { categoryAPI } from '../services/categoryAPI';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,11 +19,6 @@ const Strategy = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const navigate = useNavigate();
 
-  // 克隆相关状态
-  const [isCloneModalVisible, setIsCloneModalVisible] = useState(false);
-  const [templates, setTemplates] = useState([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
 
   // 初次加载：获取当前用户的策略列表
   useEffect(() => {
@@ -188,52 +182,9 @@ const Strategy = () => {
     });
   };
 
-  // 打开克隆模态框并加载模板
-  const showCloneModal = async () => {
-    setIsCloneModalVisible(true);
-    setLoadingTemplates(true);
-    try {
-      const data = await templateAPI.getTemplates({ pageSize: 50 });
-      const list = Array.isArray(data?.templates) ? data.templates : [];
-      setTemplates(list);
-    } catch (error) {
-      console.error('获取模板列表失败:', error);
-      message.error('获取模板列表失败: ' + (error.message || '未知错误'));
-      setTemplates([]);
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
 
-  // 确认克隆
-  const handleClone = async () => {
-    if (!selectedTemplateId) {
-      message.warning('请先选择一个模板');
-      return;
-    }
-    try {
-      const response = await api.post(`/strategies/clone-from-template/${selectedTemplateId}`);
-      const created = response.data?.strategy;
-      if (!created) {
-        throw new Error('服务器未返回创建的策略');
-      }
-      const newStrategy = {
-        id: created._id || created.id || Date.now().toString(),
-        name: created.name,
-        description: created.description,
-        type: created.type,
-        status: created.status,
-        createdAt: created.createdAt
-      };
-      setStrategies(prev => [newStrategy, ...prev]);
-      message.success('策略克隆成功');
-      setIsCloneModalVisible(false);
-      setSelectedTemplateId(null);
-    } catch (error) {
-      console.error('克隆策略失败:', error);
-      message.error('克隆策略失败: ' + (error.response?.data?.message || error.message));
-    }
-  };
+
+
 
   // 模拟策略代码
   const getStrategyCode = (strategy) => {
@@ -350,7 +301,7 @@ def handle_data(context, data):
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/strategy/create')} style={{ marginRight: 8 }}>
           创建新策略
         </Button>
-        <Button icon={<CopyOutlined />} onClick={showCloneModal}>
+          <Button icon={<CopyOutlined />} onClick={() => navigate('/strategy/clone')}>
           从模板克隆策略
         </Button>
       </div>
@@ -427,15 +378,19 @@ def handle_data(context, data):
         {currentStrategy && (
           <Tabs defaultActiveKey="code">
             <TabPane tab="Python代码" key="code">
-              <pre style={{ 
-                backgroundColor: '#f5f5f5', 
-                padding: 16, 
-                borderRadius: 4,
-                maxHeight: '500px',
-                overflow: 'auto'
-              }}>
-                {getStrategyCode(currentStrategy)}
-              </pre>
+                          <pre style={{ 
+                            backgroundColor: '#f5f5f5', 
+                            padding: 16, 
+                            borderRadius: 4,
+                            maxHeight: '500px',
+                            overflow: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace'
+                          }}>
+                 {getStrategyCode(currentStrategy)}
+               </pre>
             </TabPane>
             <TabPane tab="参数设置" key="params">
               <Form layout="vertical">
@@ -480,34 +435,6 @@ def handle_data(context, data):
         )}
       </Modal>
 
-      {/* 从模板克隆策略模态框 */}
-      <Modal
-        title="从模板克隆策略"
-        visible={isCloneModalVisible}
-        onOk={handleClone}
-        onCancel={() => setIsCloneModalVisible(false)}
-        okText="克隆"
-        cancelText="取消"
-        width={600}
-      >
-        <Form layout="vertical">
-          <Form.Item label="选择模板" required>
-            <Select
-              placeholder="请选择模板"
-              loading={loadingTemplates}
-              value={selectedTemplateId}
-              onChange={setSelectedTemplateId}
-              showSearch
-              filterOption={(input, option) => (option?.children || '').toLowerCase().includes(input.toLowerCase())}
-            >
-              {templates.map(t => (
-                <Option key={t._id} value={t._id}>{t.name}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <p style={{ color: '#888' }}>克隆后策略默认状态为“未启用”，可在列表中编辑。</p>
-        </Form>
-      </Modal>
     </div>
   );
 };

@@ -208,12 +208,12 @@ const AdminTemplates = () => {
 
   // 处理编辑模板
   const handleEditTemplate = (templateId) => {
-    navigate(`/admin/templates/edit/${templateId}`);
+    navigate(`/admin/templates/${templateId}/edit`);
   };
 
   // 处理预览模板
   const handlePreviewTemplate = (templateId) => {
-    navigate(`/admin/templates/preview/${templateId}`);
+    navigate(`/admin/templates/${templateId}/review`);
   };
 
   // 处理切换模板状态
@@ -543,7 +543,7 @@ const AdminTemplates = () => {
         <Table
           columns={columns}
           dataSource={filteredTemplates}
-          rowKey="id"
+          rowKey="_id"
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

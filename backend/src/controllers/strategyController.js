@@ -58,6 +58,7 @@ exports.createStrategy = async (req, res) => {
 exports.cloneFromTemplate = async (req, res) => {
   try {
     const { templateId } = req.params;
+    const { name } = req.body || {};
 
     // 加载模板
     const template = await Template.findById(templateId).populate('category');
@@ -70,17 +71,30 @@ exports.cloneFromTemplate = async (req, res) => {
       return res.status(403).json({ message: '无权限从该模板克隆策略' });
     }
 
-    // 映射模板分类到策略类型（如无匹配则默认“技术指标”）
-    const allowedTypes = ['技术指标', '机器学习', '统计套利', '事件驱动'];
-    const mappedType = allowedTypes.includes(template.category?.name)
-      ? template.category.name
-      : '技术指标';
+    // 生成默认名称（模板名 + 用户名 + 日期时间），若请求体提供name则使用之
+    let finalName = null;
+    try {
+      if (name && typeof name === 'string' && name.trim().length > 0) {
+        finalName = name.trim();
+      } else {
+        const User = require('../models/User');
+        const userDoc = await User.findById(req.user.id).select('username email');
+        const username = userDoc?.username || userDoc?.email || '用户';
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        finalName = `${template.name}+${username}+${ts}`;
+      }
+    } catch (e) {
+      // 回退到旧的命名方式
+      finalName = `${template.name}（克隆策略）`;
+    }
 
     // 创建策略
     const strategy = new Strategy({
-      name: `${template.name}（克隆策略）`,
+      name: finalName,
       description: template.description || '由模板克隆生成的策略',
-      type: mappedType,
+      type: template.category?.name,
       code: template.code,
       parameters: template.params || {},
       status: '未启用',

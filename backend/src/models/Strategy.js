@@ -20,8 +20,7 @@ if (mongoose.models.Strategy) {
     },
     type: {
       type: String,
-      required: true,
-      enum: ['技术指标', '机器学习', '统计套利', '事件驱动']
+      required: true
     },
     code: {
       type: String,

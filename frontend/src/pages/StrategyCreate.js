@@ -107,13 +107,12 @@ const StrategyCreate = () => {
       }
       // 根据选中类别推断顶层类型名称（用于后端枚举）
       const found = findNodeAndRoot(allCategories, selectedCategoryId, null);
-      const rootTypeName = found?.rootName || selectedRootType;
+      const rootTypeName = found?.name || selectedRootType;
       if (!rootTypeName) {
         message.error('无法解析顶层策略类型，请重新选择');
         return;
       }
-      const allowedTypes = ['技术指标', '机器学习', '统计套利', '事件驱动'];
-      const mappedType = allowedTypes.includes(rootTypeName) ? rootTypeName : '技术指标';
+
       if (!code || code.trim() === '') {
         message.error('请在代码编辑页填写策略代码');
         setActiveTab('code');
@@ -123,7 +122,7 @@ const StrategyCreate = () => {
       const payload = {
         name: values.name,
         description: values.description,
-        type: mappedType, // 确保落入后端枚举：技术指标/机器学习/统计套利/事件驱动
+        type: found?.node.name, // 确保落入后端枚举：技术指标/机器学习/统计套利/事件驱动
         code,
         parameters: {},
         status: '未启用',
@@ -201,11 +200,11 @@ const StrategyCreate = () => {
             <Card title="基本信息" style={{ marginBottom: 16 }}>
               <p><strong>策略名称：</strong>{form.getFieldValue('name') || '-'}</p>
               <p><strong>策略描述：</strong>{form.getFieldValue('description') || '-'}</p>
-              <p><strong>策略类型：</strong>{(['技术指标','机器学习','统计套利','事件驱动'].includes(selectedRootType) ? selectedRootType : '技术指标') || '-'}</p>
+              <p><strong>策略类型：</strong>{(() => { const found = findNodeAndRoot(allCategories, selectedCategoryId, null); return found?.node?.name || '-'; })()}</p>
               <p><strong>状态：</strong>未启用</p>
             </Card>
             <Card title="代码预览">
-              <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: 500, overflow: 'auto' }}>
+              <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: 500, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
                 {code || '# 在此输入策略代码以预览'}
               </pre>
             </Card>
