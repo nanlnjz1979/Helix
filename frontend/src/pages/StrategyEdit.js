@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Form, Input, Button, Card, message, TreeSelect } from 'antd';
-import { CodeOutlined, SaveOutlined, EyeOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Tabs, Form, Input, Button, Card, message, TreeSelect, InputNumber, Switch } from 'antd';
+import { CodeOutlined, SaveOutlined, EyeOutlined, ArrowLeftOutlined, PlayCircleOutlined, StopOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import categoryAPI from '../services/categoryAPI';
@@ -34,6 +34,7 @@ const StrategyEdit = () => {
   const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [parsedParams, setParsedParams] = useState([]);
 
   // 现有策略
   const [existingStrategy, setExistingStrategy] = useState(null);
@@ -43,6 +44,13 @@ const StrategyEdit = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const [selectedRootType, setSelectedRootType] = useState('');
+
+  // 编译相关状态
+  const [compiling, setCompiling] = useState(false);
+  const [compileStatus, setCompileStatus] = useState('idle'); // idle | running | success | error
+  const [compileLogs, setCompileLogs] = useState([]);
+  const [compileArtifact, setCompileArtifact] = useState(null);
+  const compileSourceRef = useRef(null);
 
   // 加载类别树（用于策略类型树形显示）
   useEffect(() => {
@@ -66,6 +74,36 @@ const StrategyEdit = () => {
     loadTree();
   }, []);
 
+  // 从代码中解析参数（简化解析器，与模板页一致模式）
+  const parseParamsFromCode = (codeStr) => {
+    const params = [];
+    const paramClassRegex = /class\s+StrategyParams[\s\S]*?def\s+__init__\(self\):([\s\S]*?)class|$/;
+    const match = (codeStr || '').match(paramClassRegex);
+    if (match && match[1]) {
+      const lines = match[1].split('\n');
+      lines.forEach(line => {
+        const paramRegex = /self\.(\w+)\s*=\s*([^#]+)\s*#\s*(.+)/;
+        const m = line.match(paramRegex);
+        if (m) {
+          const [, name, valueRaw, description] = m;
+          let parsedValue;
+          const v = (valueRaw || '').trim();
+          if (v === 'true') parsedValue = true;
+          else if (v === 'false') parsedValue = false;
+          else if (!isNaN(v)) parsedValue = Number(v);
+          else parsedValue = v.replace(/'/g, '');
+          params.push({
+            name,
+            value: parsedValue,
+            description,
+            type: typeof parsedValue
+          });
+        }
+      });
+    }
+    setParsedParams(params);
+  };
+
   // 加载现有策略数据
   useEffect(() => {
     const loadStrategy = async () => {
@@ -82,7 +120,9 @@ const StrategyEdit = () => {
           description: s.description,
           categoryId: s.type || null, // 无直接类别关联，保持为空
         });
-        setCode(s.code || '');
+        const initCode = s.code || '';
+        setCode(initCode);
+        parseParamsFromCode(initCode);
         setSelectedRootType(s.type || '');
       } catch (e) {
         console.error('加载策略失败:', e);
@@ -117,6 +157,14 @@ const StrategyEdit = () => {
     ))
   );
 
+  const updateParamValue = (index, newValue) => {
+    setParsedParams(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], value: newValue };
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
@@ -135,13 +183,18 @@ const StrategyEdit = () => {
         return;
       }
 
+      // 将解析到的参数组装为对象 {name: value}
+      const parametersObj = parsedParams && parsedParams.length > 0
+        ? parsedParams.reduce((acc, p) => { acc[p.name] = p.value; return acc; }, {})
+        : (existingStrategy?.parameters || {});
+
       setSaving(true);
       const payload = {
         name: values.name,
         description: values.description,
         type: mappedType,
         code,
-        parameters: existingStrategy?.parameters || {},
+        parameters: parametersObj,
         status: existingStrategy?.status || '未启用'
       };
 
@@ -157,6 +210,76 @@ const StrategyEdit = () => {
       message.error('策略更新失败：' + msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 编译：启动与停止
+  const startCompile = () => {
+    if (!id) return;
+    // 重置状态
+    setCompileLogs([]);
+    setCompileArtifact(null);
+    setCompileStatus('running');
+    setCompiling(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const compileUrl = `http://localhost:5000/api/strategies/${id}/compile${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      const es = new EventSource(compileUrl);
+      compileSourceRef.current = es;
+
+      es.onmessage = (ev) => {
+        try {
+          const payload = JSON.parse(ev.data);
+          const ts = new Date(payload.ts || Date.now()).toLocaleTimeString();
+          setCompileLogs(prev => [...prev, `[${ts}] ${payload.level?.toUpperCase() || 'INFO'}: ${payload.message}`]);
+        } catch (e) {
+          setCompileLogs(prev => [...prev, `日志解析失败: ${ev.data}`]);
+        }
+      };
+
+      es.addEventListener('done', (ev) => {
+        setCompiling(false);
+        try {
+          const final = JSON.parse(ev.data);
+          if (final.status === 'success') {
+            setCompileStatus('success');
+            setCompileArtifact(final.artifact || null);
+            message.success('编译成功');
+          } else {
+            setCompileStatus('error');
+            message.error(final.message || '编译失败');
+          }
+        } catch (e) {
+          setCompileStatus('error');
+          message.error('编译结束数据解析失败');
+        }
+        es.close();
+        compileSourceRef.current = null;
+      });
+
+      es.onerror = () => {
+        setCompiling(false);
+        setCompileStatus('error');
+        setCompileLogs(prev => [...prev, '编译连接或服务错误']);
+        es.close();
+        compileSourceRef.current = null;
+      };
+    } catch (e) {
+      setCompiling(false);
+      setCompileStatus('error');
+      setCompileLogs(prev => [...prev, `无法启动编译: ${e.message}`]);
+    }
+  };
+
+  const stopCompile = () => {
+    const es = compileSourceRef.current;
+    if (es) {
+      es.close();
+      compileSourceRef.current = null;
+      setCompiling(false);
+      setCompileStatus('idle');
+      setCompileLogs(prev => [...prev, '已停止编译']);
     }
   };
 
@@ -209,7 +332,56 @@ const StrategyEdit = () => {
           </TabPane>
 
           <TabPane tab="代码编辑" key="code">
-            <MonacoEditor value={code} onChange={setCode} />
+            <MonacoEditor value={code} onChange={(val) => { setCode(val); parseParamsFromCode(val); }} />
+          </TabPane>
+
+          <TabPane tab="参数配置" key="params">
+            {parsedParams && parsedParams.length > 0 ? (
+              <Form layout="vertical">
+                {parsedParams.map((p, idx) => (
+                  <Form.Item key={p.name} label={`${p.name}${p.description ? ` - ${p.description}` : ''}`}>
+                    {p.type === 'number' ? (
+                      <InputNumber style={{ width: '100%' }} value={p.value} onChange={(val) => updateParamValue(idx, val)} />
+                    ) : p.type === 'boolean' ? (
+                      <Switch checked={!!p.value} onChange={(checked) => updateParamValue(idx, checked)} />
+                    ) : (
+                      <Input value={String(p.value)} onChange={(e) => updateParamValue(idx, e.target.value)} />
+                    )}
+                  </Form.Item>
+                ))}
+              </Form>
+            ) : (
+              <p style={{ color: '#888', textAlign: 'center' }}>未解析到参数，请在代码中定义 StrategyParams 类，并在构造函数中以“self.name = value # 描述”的形式声明参数。</p>
+            )}
+          </TabPane>
+
+          <TabPane tab="代码编译" key="compile">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button type="primary" icon={<PlayCircleOutlined />} onClick={startCompile} disabled={compiling}>开始编译</Button>
+                <Button danger icon={<StopOutlined />} onClick={stopCompile} disabled={!compiling}>停止</Button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {compileStatus === 'running' && <span style={{ color: '#1890ff' }}><PlayCircleOutlined /> 编译中</span>}
+                {compileStatus === 'success' && <span style={{ color: '#52c41a' }}><CheckCircleOutlined /> 编译成功</span>}
+                {compileStatus === 'error' && <span style={{ color: '#ff4d4f' }}><CloseCircleOutlined /> 编译失败</span>}
+                {compileStatus === 'idle' && <span style={{ color: '#888' }}>未开始</span>}
+              </div>
+            </div>
+            <Card title="编译日志" style={{ marginBottom: 16 }}>
+              <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: '300px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
+                {compileLogs.length > 0 ? compileLogs.join('\n') : '暂无日志'}
+              </pre>
+            </Card>
+            <Card title="编译产物">
+              {compileArtifact ? (
+                <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: '300px', overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
+                  {JSON.stringify(compileArtifact, null, 2)}
+                </pre>
+              ) : (
+                <div style={{ color: '#888' }}>暂无产物（编译成功后显示）</div>
+              )}
+            </Card>
           </TabPane>
 
           <TabPane tab="预览保存" key="preview">

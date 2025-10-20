@@ -21,4 +21,7 @@ router.put('/:id', auth, strategyController.updateStrategy);
 // 删除策略
 router.delete('/:id', auth, strategyController.deleteStrategy);
 
+// 代码编译（SSE流）
+router.get('/:id/compile', auth, strategyController.compileStrategySSE);
+
 module.exports = router;

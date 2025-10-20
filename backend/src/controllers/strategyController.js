@@ -2,6 +2,11 @@
 const Strategy = require('../models/Strategy');
 const Template = require('../models/Template');
 const Category = require('../models/Category');
+// 新增: 引入Node核心模块用于编译过程的文件操作与子进程
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { spawn } = require('child_process');
 
 // 获取所有策略
 exports.getAllStrategies = async (req, res) => {
@@ -155,5 +160,132 @@ exports.deleteStrategy = async (req, res) => {
     res.json({ message: '策略删除成功' });
   } catch (error) {
     res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+};
+
+// 代码编译（SSE流式输出）
+exports.compileStrategySSE = async (req, res) => {
+  // 设置SSE响应头
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (obj) => {
+    try {
+      res.write(`data: ${JSON.stringify({ ts: Date.now(), ...obj })}\n\n`);
+    } catch (e) {
+      // 忽略写入错误
+    }
+  };
+
+  const end = (final) => {
+    try {
+      res.write(`event: done\n`);
+      res.write(`data: ${JSON.stringify(final)}\n\n`);
+    } finally {
+      res.end();
+    }
+  };
+
+  // 解析Python命令
+  const trySpawnPython = (args, onData) => new Promise((resolve) => {
+    let tried = [];
+    const attempt = (cmdIndex) => {
+      const cmds = ['python', 'py'];
+      if (cmdIndex >= cmds.length) {
+        return resolve({ error: new Error('未找到Python执行器'), code: -1 });
+      }
+      const cmd = cmds[cmdIndex];
+      tried.push(cmd);
+      const p = spawn(cmd, args);
+      p.stdout.on('data', (d) => onData && onData('stdout', d));
+      p.stderr.on('data', (d) => onData && onData('stderr', d));
+      p.on('error', (err) => {
+        // 尝试下一个命令
+        attempt(cmdIndex + 1);
+      });
+      p.on('close', (code) => resolve({ code, cmd }));
+    };
+    attempt(0);
+  });
+
+  try {
+    const id = req.params.id;
+    const strategy = await Strategy.findOne({ _id: id, user: req.user.id });
+    if (!strategy) {
+      send({ level: 'error', message: '策略不存在或无权限' });
+      return end({ status: 'error', message: '策略不存在或无权限' });
+    }
+
+    const code = strategy.code || '';
+    send({ level: 'info', message: '开始编译策略代码（Python）...' });
+
+    // 基础检查
+    if (!code || code.trim().length === 0) {
+      send({ level: 'error', message: '代码为空，无法编译' });
+      return end({ status: 'error', message: '代码为空' });
+    }
+    send({ level: 'info', message: `代码长度: ${code.length} 字符` });
+
+    // 写入临时文件
+    const tmpBase = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'helix-strategy-'));
+    const pyFile = path.join(tmpBase, 'strategy.py');
+    await fs.promises.writeFile(pyFile, code, { encoding: 'utf8' });
+    send({ level: 'info', message: `已写入临时文件: ${pyFile}` });
+
+    // 调用Python编译器: py_compile
+    send({ level: 'info', message: '调用Python编译器: python -m py_compile strategy.py' });
+    const compileResult = await trySpawnPython(['-m', 'py_compile', pyFile], (stream, data) => {
+      const text = data.toString();
+      if (text.trim().length > 0) {
+        send({ level: stream === 'stderr' ? 'error' : 'info', message: text });
+      }
+    });
+
+    if (compileResult.error) {
+      send({ level: 'error', message: `无法启动Python编译器: ${compileResult.error.message}` });
+      return end({ status: 'error', message: '未安装Python或不可用' });
+    }
+
+    if (compileResult.code !== 0) {
+      send({ level: 'error', message: `编译失败，退出码: ${compileResult.code}` });
+      // 查找错误日志已通过stderr输出发送
+      try { await fs.promises.rm(tmpBase, { recursive: true, force: true }); } catch (_) {}
+      return end({ status: 'error', message: 'Python编译失败' });
+    }
+
+    // 查找产物（__pycache__中的pyc）
+    let artifact = { compiledAt: new Date().toISOString(), tempDir: tmpBase };
+    const cacheDir = path.join(tmpBase, '__pycache__');
+    try {
+      const files = await fs.promises.readdir(cacheDir);
+      const pyc = files.find(f => f.endsWith('.pyc'));
+      if (pyc) {
+        const compiledFile = path.join(cacheDir, pyc);
+        const stat = await fs.promises.stat(compiledFile);
+        artifact.compiledFile = compiledFile;
+        artifact.size = stat.size;
+        send({ level: 'success', message: `编译成功，生成: ${compiledFile} (${stat.size} 字节)` });
+      } else {
+        send({ level: 'warning', message: '未找到pyc产物（可能由环境或版本差异导致）' });
+      }
+    } catch (e) {
+      send({ level: 'warning', message: `检查编译产物失败: ${e.message}` });
+    }
+
+    // 清理临时目录（如需保留供调试，可注释掉）
+    try {
+      await fs.promises.rm(tmpBase, { recursive: true, force: true });
+      send({ level: 'info', message: '已清理临时编译目录' });
+      delete artifact.tempDir;
+    } catch (e) {
+      // 忽略清理失败
+    }
+
+    return end({ status: 'success', artifact });
+  } catch (error) {
+    console.error('编译过程异常:', error);
+    send({ level: 'error', message: `编译异常: ${error.message}` });
+    return end({ status: 'error', message: error.message });
   }
 };

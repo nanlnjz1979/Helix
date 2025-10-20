@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tabs, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CodeOutlined, CopyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CodeOutlined, CopyOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { categoryAPI } from '../services/categoryAPI';
 import { useNavigate } from 'react-router-dom';
@@ -103,14 +103,26 @@ const Strategy = () => {
       key: 'action',
       render: (_, record) => (
         <>
-          <Button 
-            type="text" 
-            icon={<CodeOutlined />} 
-            onClick={() => showCodeModal(record)}
-            style={{ marginRight: 8 }}
-          >
-            查看代码
-          </Button>
+          {record.status === '已启用' ? (
+            <Button 
+              type="text" 
+              danger
+              icon={<CloseCircleOutlined />} 
+              onClick={() => handleDisable(record.id)}
+              style={{ marginRight: 8 }}
+            >
+              禁用
+            </Button>
+          ) : (
+            <Button 
+              type="text" 
+              icon={<CheckCircleOutlined />} 
+              onClick={() => handleEnable(record.id)}
+              style={{ marginRight: 8 }}
+            >
+              启用
+            </Button>
+          )}
           <Button 
             type="text" 
             icon={<EditOutlined />} 
@@ -180,6 +192,28 @@ const Strategy = () => {
         }
       }
     });
+  };
+
+  const handleEnable = async (id) => {
+    try {
+      await api.put(`/strategies/${id}`, { status: '已启用' });
+      setStrategies(prev => prev.map(s => s.id === id ? { ...s, status: '已启用' } : s));
+      message.success('策略已启用');
+    } catch (error) {
+      console.error('启用策略失败:', error);
+      message.error('启用失败：' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleDisable = async (id) => {
+    try {
+      await api.put(`/strategies/${id}`, { status: '未启用' });
+      setStrategies(prev => prev.map(s => s.id === id ? { ...s, status: '未启用' } : s));
+      message.success('策略已禁用');
+    } catch (error) {
+      console.error('禁用策略失败:', error);
+      message.error('禁用失败：' + (error.response?.data?.message || error.message));
+    }
   };
 
 
