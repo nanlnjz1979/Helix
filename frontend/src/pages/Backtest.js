@@ -1,18 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, Form, Select, DatePicker, InputNumber, Button, Tabs, Table, message } from 'antd';
-import { PlayCircleOutlined, BarChartOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useSelector } from 'react-redux';
+import api from '../services/api';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 
 const Backtest = () => {
-  const { strategies } = useSelector(state => state.strategy);
+  const { strategies: strategiesFromStore = [] } = useSelector(state => state.strategy);
   const [form] = Form.useForm();
   const [backtestResult, setBacktestResult] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
+  const [strategiesData, setStrategiesData] = useState([]);
+  const [loadingStrategies, setLoadingStrategies] = useState(false);
+
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      setLoadingStrategies(true);
+      try {
+        const res = await api.get('/strategies');
+        const list = Array.isArray(res.data) ? res.data : (res.data?.strategies || []);
+        setStrategiesData(list);
+      } catch (err) {
+        console.error('加载策略列表失败:', err);
+        message.error(`加载策略失败: ${err?.response?.data?.message || err.message}`);
+        // 回退到store的策略（如果存在）
+        setStrategiesData(strategiesFromStore || []);
+      } finally {
+        setLoadingStrategies(false);
+      }
+    };
+    fetchStrategies();
+  }, [strategiesFromStore]);
+
+  const strategyMapById = useMemo(() => {
+    const map = new Map();
+    (strategiesData || []).forEach(s => map.set(s.id || s._id, s));
+    return map;
+  }, [strategiesData]);
   
   // 模拟回测结果数据
   const mockBacktestResult = {
@@ -171,12 +200,24 @@ const Backtest = () => {
     };
   };
 
+  const handleStrategyChange = (val) => {
+    const s = strategyMapById.get(val);
+    setSelectedStrategy(s || null);
+    // 设置参数默认值
+    if (s && Array.isArray(s.parameters)) {
+      const defaultParams = {};
+      s.parameters.forEach(p => {
+        defaultParams[p.name] = p.default;
+      });
+      form.setFieldsValue({ params: defaultParams });
+    }
+  };
+
   // 执行回测
   const handleRunBacktest = () => {
     form.validateFields().then(values => {
       setIsRunning(true);
-      
-      // 模拟回测过程
+      // 模拟回测过程，使用部分参数以展示
       setTimeout(() => {
         setBacktestResult(mockBacktestResult);
         setIsRunning(false);
@@ -187,110 +228,129 @@ const Backtest = () => {
 
   return (
     <div>
-      <h2>策略回测</h2>
-      
-      <Card title="回测设置" style={{ marginBottom: 16 }}>
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="选择策略"
-            name="strategy"
-            rules={[{ required: true, message: '请选择策略' }]}
-          >
-            <Select placeholder="请选择策略">
-              {strategies.map(strategy => (
-                <Option key={strategy.id} value={strategy.id}>{strategy.name}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            label="回测时间范围"
-            name="dateRange"
-            rules={[{ required: true, message: '请选择回测时间范围' }]}
-          >
-            <RangePicker />
-          </Form.Item>
-          
-          <Form.Item
-            label="初始资金"
-            name="initialCapital"
-            rules={[{ required: true, message: '请输入初始资金' }]}
-          >
-            <InputNumber min={1000} max={1000000} defaultValue={100000} style={{ width: '100%' }} />
-          </Form.Item>
-          
-          <Form.Item>
-            <Button 
-              type="primary" 
-              icon={<PlayCircleOutlined />} 
-              onClick={handleRunBacktest}
-              loading={isRunning}
-            >
-              开始回测
-            </Button>
-          </Form.Item>
-        </Form>
+      <Card title="策略回测">
+        <Tabs defaultActiveKey="config">
+          <TabPane tab="选择策略与参数" key="config">
+            <Form form={form} layout="vertical">
+              <Form.Item
+                label="选择策略"
+                name="strategy"
+                rules={[{ required: true, message: '请选择策略' }]}
+              >
+                <Select 
+                  placeholder="请选择策略" 
+                  onChange={handleStrategyChange}
+                  loading={loadingStrategies}
+                  allowClear
+                >
+                  {(strategiesData || []).map(strategy => (
+                    <Option key={strategy.id || strategy._id} value={strategy.id || strategy._id}>{strategy.name}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              {/* 代码输入的参数 */}
+              {selectedStrategy && Array.isArray(selectedStrategy.parameters) && selectedStrategy.parameters.length > 0 && (
+                <Card size="small" title="代码输入的参数" style={{ marginBottom: 16 }}>
+                  {selectedStrategy.parameters.map(param => (
+                    <Form.Item
+                      key={param.name}
+                      label={param.name}
+                      name={['params', param.name]}
+                      rules={[{ required: true, message: `请输入参数 ${param.name}` }]}
+                    >
+                      <InputNumber min={param.min} max={param.max} defaultValue={param.default} style={{ width: '100%' }} />
+                    </Form.Item>
+                  ))}
+                </Card>
+              )}
+            </Form>
+          </TabPane>
+
+          <TabPane tab="显示代码" key="code">
+            {selectedStrategy ? (
+              <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: 500, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
+                {selectedStrategy.code || '# 该策略暂未提供代码'}
+              </pre>
+            ) : (
+              <div style={{ color: '#999' }}>请先在“选择策略与参数”页签中选择策略</div>
+            )}
+          </TabPane>
+
+          <TabPane tab="回测运行与结果" key="run">
+            <div style={{ marginBottom: 16 }}>
+              <Button 
+                type="primary" 
+                icon={<PlayCircleOutlined />} 
+                onClick={handleRunBacktest}
+                loading={isRunning}
+              >
+                开始回测
+              </Button>
+            </div>
+
+            {backtestResult && (
+              <Card title="回测结果" style={{ marginBottom: 16 }}>
+                <Tabs defaultActiveKey="summary">
+                  <TabPane tab="回测摘要" key="summary">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>总收益</p>
+                        <p style={{ fontSize: 24, color: '#3f8600', fontWeight: 'bold' }}>
+                          ${backtestResult.profit} ({backtestResult.profitPercent}%)
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>最大回撤</p>
+                        <p style={{ fontSize: 24, color: '#cf1322', fontWeight: 'bold' }}>
+                          {backtestResult.maxDrawdown}%
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>夏普比率</p>
+                        <p style={{ fontSize: 24, color: '#1890ff', fontWeight: 'bold' }}>
+                          {backtestResult.sharpeRatio}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>胜率</p>
+                        <p style={{ fontSize: 24, color: '#722ed1', fontWeight: 'bold' }}>
+                          {backtestResult.winRate}%
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>总交易次数</p>
+                        <p style={{ fontSize: 24, color: '#fa8c16', fontWeight: 'bold' }}>
+                          {backtestResult.totalTrades}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, color: '#666' }}>最终资金</p>
+                        <p style={{ fontSize: 24, color: '#3f8600', fontWeight: 'bold' }}>
+                          ${backtestResult.finalCapital}
+                        </p>
+                      </div>
+                    </div>
+                  </TabPane>
+                  
+                  <TabPane tab="图表分析" key="charts">
+                    <div style={{ marginBottom: 16 }}>
+                      <ReactECharts option={getEquityCurveOption()} style={{ height: 400 }} />
+                    </div>
+                    <div>
+                      <ReactECharts option={getMonthlyReturnsOption()} style={{ height: 300 }} />
+                    </div>
+                  </TabPane>
+                  
+                  <TabPane tab="交易记录" key="trades">
+                    <Table columns={columns} dataSource={backtestResult.trades} pagination={false} />
+                  </TabPane>
+                </Tabs>
+              </Card>
+            )}
+          </TabPane>
+        </Tabs>
       </Card>
-      
-      {backtestResult && (
-        <Card title="回测结果" style={{ marginBottom: 16 }}>
-          <Tabs defaultActiveKey="summary">
-            <TabPane tab="回测摘要" key="summary">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>总收益</p>
-                  <p style={{ fontSize: 24, color: '#3f8600', fontWeight: 'bold' }}>
-                    ${backtestResult.profit} ({backtestResult.profitPercent}%)
-                  </p>
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>最大回撤</p>
-                  <p style={{ fontSize: 24, color: '#cf1322', fontWeight: 'bold' }}>
-                    {backtestResult.maxDrawdown}%
-                  </p>
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>夏普比率</p>
-                  <p style={{ fontSize: 24, color: '#1890ff', fontWeight: 'bold' }}>
-                    {backtestResult.sharpeRatio}
-                  </p>
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>胜率</p>
-                  <p style={{ fontSize: 24, color: '#722ed1', fontWeight: 'bold' }}>
-                    {backtestResult.winRate}%
-                  </p>
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>总交易次数</p>
-                  <p style={{ fontSize: 24, color: '#fa8c16', fontWeight: 'bold' }}>
-                    {backtestResult.totalTrades}
-                  </p>
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, color: '#666' }}>最终资金</p>
-                  <p style={{ fontSize: 24, color: '#3f8600', fontWeight: 'bold' }}>
-                    ${backtestResult.finalCapital}
-                  </p>
-                </div>
-              </div>
-            </TabPane>
-            
-            <TabPane tab="图表分析" key="charts">
-              <div style={{ marginBottom: 16 }}>
-                <ReactECharts option={getEquityCurveOption()} style={{ height: 400 }} />
-              </div>
-              <div>
-                <ReactECharts option={getMonthlyReturnsOption()} style={{ height: 300 }} />
-              </div>
-            </TabPane>
-            
-            <TabPane tab="交易记录" key="trades">
-              <Table columns={columns} dataSource={backtestResult.trades} pagination={false} />
-            </TabPane>
-          </Tabs>
-        </Card>
-      )}
     </div>
   );
 };
