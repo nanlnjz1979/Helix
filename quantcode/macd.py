@@ -95,7 +95,7 @@ def generate_complete_performance_json(strat, results,data,symbol,start_date,end
             datetime_str = transaction_datetime.isoformat()
         except:
             # Fallback in case of timestamp format issues
-            datetime_str = str(date)
+            datetime_str = str(date.strftime("%Y%m%d"))
             
         for trans in transactions:
             # Ensure proper type conversion for JSON serialization

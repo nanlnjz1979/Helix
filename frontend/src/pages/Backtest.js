@@ -316,20 +316,62 @@ const Backtest = () => {
                 <Card title="K线与成交量" style={{ marginBottom: 16 }}>
                   <ReactECharts option={(function(){
                     const sd = Array.isArray(jsonResult.stockdata) ? jsonResult.stockdata : [];
-                    const categories = sd.map(i => i.trade_date);
+                    const categories = sd.map(i => i.trade_date || i.date || i.datetime || i.time);
+                    const categoriesMap = new Map();
+                    categories.forEach((d, idx) => { if (d != null) categoriesMap.set(String(d), idx); });
                     const kline = sd.map(i => [i.open, i.close, i.low, i.high]);
-                    const volume = sd.map(i => i.vol || 0);
+                    const volume = sd.map(i => i.vol || i.volume || 0);
+
+                    // 从真实交易数据中提取买卖点
+                    const tx = Array.isArray(jsonResult.transactions) ? jsonResult.transactions : [];
+                    const buyPoints = [];
+                    const sellPoints = [];
+                    tx.forEach(t => {
+                      const dt = String(t.datetime || t.date || t.trade_date || '');
+                      if (!dt) return;
+                      const idx = categoriesMap.has(dt) ? categoriesMap.get(dt) : categories.indexOf(dt);
+                      if (typeof idx !== 'number' || idx < 0) return;
+                      const side = (t.type || t.side || '').toString();
+                      let price = typeof t.price === 'number' ? t.price : undefined;
+                      if (price == null && typeof t.value === 'number' && typeof t.amount === 'number' && t.amount !== 0) {
+                        price = t.value / t.amount;
+                      }
+                      if (price == null && sd[idx] && typeof sd[idx].close === 'number') {
+                        price = sd[idx].close;
+                      }
+                      if (price == null) return;
+                      const point = [idx, price];
+                      if (side.includes('买') || side.toLowerCase() === 'buy' || (typeof t.amount === 'number' && t.amount > 0)) {
+                        buyPoints.push(point);
+                      } else if (side.includes('卖') || side.toLowerCase() === 'sell' || (typeof t.amount === 'number' && t.amount < 0)) {
+                        sellPoints.push(point);
+                      }
+                    });
+
                     return {
                       tooltip: { trigger: 'axis' },
-                      xAxis: [{ type: 'category', data: categories, boundaryGap: true }, { type: 'category', gridIndex: 1, data: categories, boundaryGap: true }],
+                      xAxis: [
+                        { type: 'category', data: categories, boundaryGap: true },
+                        { type: 'category', gridIndex: 1, data: categories, boundaryGap: true }
+                      ],
                       yAxis: [{ scale: true }, { gridIndex: 1 }],
-                      grid: [{ left: '10%', right: '10%', height: '55%' }, { left: '10%', right: '10%', top: '70%', height: '20%' }],
+                      grid: [
+                        { left: '10%', right: '10%', height: '50%' },
+                        { left: '10%', right: '10%', top: '70%', height: '20%' }
+                      ],
+                      // 时间轴滑块下移一些，避免紧贴图表
+                      dataZoom: [
+                        { type: 'slider', xAxisIndex: [0, 1], realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
+                        { type: 'inside', xAxisIndex: [0, 1], realtime: true }
+                      ],
                       series: [
                         { name: 'K线', type: 'candlestick', data: kline },
-                        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volume }
+                        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volume },
+                        { name: '卖点', type: 'scatter', data: buyPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 180, itemStyle: { color: '#52c41a' }, z: 10 },
+                        { name: '买点', type: 'scatter', data: sellPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 0,itemStyle: { color: '#f5222d' }, z: 10 }
                       ]
                     };
-                  })()} style={{ height: 420 }} />
+                  })()} style={{ height: 600 }} />
                 </Card>
                 <Card title="时间序列收益" style={{ marginBottom: 16 }}>
                   <ReactECharts option={(function(){
@@ -396,6 +438,11 @@ const Backtest = () => {
                     ]}
                     dataSource={Array.isArray(jsonResult.transactions) ? jsonResult.transactions : []}
                     pagination={{ pageSize: 10 }}
+                    onRow={(record, index) => ({
+                      style: {
+                        backgroundColor: (index % 2 === 0) ? '#fffffeff' : '#b4e0ffff'
+                      }
+                    })}
                   />
                 </Card>
               </div>
