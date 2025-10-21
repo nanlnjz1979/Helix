@@ -3,8 +3,8 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const templateController = require('../controllers/templateController');
 
-// 应用认证中间件
-router.use(auth);
+// 应用认证中间件仅作用于模板路径，避免拦截其他 /api/* 路径
+router.use('/templates', auth);
 
 // 模板API路由
 

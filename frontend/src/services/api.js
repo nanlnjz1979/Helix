@@ -70,7 +70,7 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error('[API RESPONSE ERROR] 请求', error.config?.url, '失败');
+    console.error('[API RESPONSE ERROR] 请求', error?.config?.url, '失败');
     
     // 检查是否是axios错误
     if (error.isAxiosError) {
