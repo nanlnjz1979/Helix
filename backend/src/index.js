@@ -70,15 +70,18 @@ const categoryController = require('./controllers/categoryController');
 // 导入模板相关路由
 const templateRoutes = require('./routes/templateRoutes');
 const backtestRoutes = require('./routes/backtestRoutes');
-  
-  // 路由
-  app.use('/api/auth', authRoutes);
-  app.use('/api/strategies', strategyRoutes);
-  app.use('/api/admin', adminRoutes);
-  // 挂载模板相关路由
-  app.use('/api', templateRoutes);
-  // 回测相关路由
-  app.use('/api/backtest', backtestRoutes);
+const monitorRoutes = require('./routes/monitorRoutes');
+   
+   // 路由
+   app.use('/api/auth', authRoutes);
+   app.use('/api/strategies', strategyRoutes);
+   app.use('/api/admin', adminRoutes);
+   // 挂载模板相关路由
+   app.use('/api', templateRoutes);
+   // 回测相关路由
+   app.use('/api/backtest', backtestRoutes);
+   // 系统监控路由
+   app.use('/api/monitor', monitorRoutes);
   
   // 只有当categoryRoutes存在时才挂载
   if (categoryRoutesModule && categoryRoutesModule.router) {

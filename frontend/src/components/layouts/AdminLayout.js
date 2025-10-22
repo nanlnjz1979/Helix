@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import {  DashboardOutlined,  UserOutlined,  CodeOutlined,  LogoutOutlined,  MenuFoldOutlined,  MenuUnfoldOutlined,  SettingOutlined,  BarChartOutlined,  TagOutlined,  FileTextOutlined} from '@ant-design/icons';
+import { DashboardOutlined, UserOutlined, CodeOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, BarChartOutlined, TagOutlined, FileTextOutlined } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
 
 const AdminLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-  
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
-  
+
   const userMenu = [
     {
       key: 'profile',
@@ -31,41 +31,24 @@ const AdminLayout = ({ children }) => {
       onClick: handleLogout
     }
   ];
-  
+
   const menuItems = [
-    {
-      key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: '管理仪表盘',
-      onClick: () => navigate('/admin/dashboard')
-    },
-    {
-      key: 'analytics',
-      icon: <BarChartOutlined />,
-      label: '数据分析',
-      onClick: () => navigate('/admin/analytics')
-    },
-    {
-      key: 'users',
-      icon: <UserOutlined />,
-      label: '用户管理',
-      onClick: () => navigate('/admin/users')
-    },
-    {      key: 'strategies',      icon: <CodeOutlined />,      label: '策略管理',      onClick: () => navigate('/admin/strategies')    },    {      key: 'categories',      icon: <TagOutlined />,      label: '策略类型管理',      onClick: () => navigate('/admin/categories')    },
-    {      key: 'templates',      icon: <FileTextOutlined />,      label: '模板管理',      onClick: () => navigate('/admin/templates')    }
+    { key: 'dashboard', icon: <DashboardOutlined />, label: '管理仪表盘', onClick: () => navigate('/admin/dashboard') },
+    { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', onClick: () => navigate('/admin/analytics') },
+    { key: 'system', icon: <BarChartOutlined />, label: '系统监控', onClick: () => navigate('/admin/system') },
+    { key: 'users', icon: <UserOutlined />, label: '用户管理', onClick: () => navigate('/admin/users') },
+    { key: 'strategies', icon: <CodeOutlined />, label: '策略管理', onClick: () => navigate('/admin/strategies') },
+    { key: 'categories', icon: <TagOutlined />, label: '策略类型管理', onClick: () => navigate('/admin/categories') },
+    { key: 'templates', icon: <FileTextOutlined />, label: '模板管理', onClick: () => navigate('/admin/templates') }
   ];
-  
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
         <div className="logo">
           {!collapsed ? '管理后台' : 'Admin'}
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          items={menuItems}
-        />
+        <Menu theme="dark" mode="inline" items={menuItems} />
       </Sider>
       <Layout>
         <Header style={{ padding: 0, background: '#fff' }}>

@@ -18,6 +18,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminStrategies from './pages/AdminStrategies';
 import AdminAnalytics from './pages/AdminAnalytics';
+import AdminSystemMonitor from './pages/AdminSystemMonitor';
 import AdminCategories from './pages/AdminCategories';
 import AdminCategoryDetails from './pages/AdminCategoryDetails';
 import AdminTemplates from './pages/AdminTemplates';
@@ -71,6 +72,13 @@ function App() {
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminAnalytics />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/system" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminSystemMonitor />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
