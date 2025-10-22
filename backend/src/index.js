@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const backupRoutes = require('./routes/backupRoutes');
 
 // 初始化Express应用
 const app = express();
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // 增加请求大小限制到10mb
 app.use(morgan('dev'));
+app.use('/api/admin/backup', require('./routes/backupRoutes'));
 
 // 连接数据库
 console.log('正在尝试连接到MongoDB:', process.env.MONGODB_URI);

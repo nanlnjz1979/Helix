@@ -1,0 +1,27 @@
+{
+  "id": "20251022_165936",
+  "createdAt": "2025-10-22T08:59:36.722Z",
+  "models": [
+    "User",
+    "Strategy",
+    "Template",
+    "Category",
+    "StrategyCategory"
+  ],
+  "sizes": {
+    "User.json": 1958,
+    "Strategy.json": 28792,
+    "Template.json": 1391337,
+    "Category.json": 17777,
+    "StrategyCategory.json": 2
+  },
+  "storage": {
+    "location": "D:\\helix\\Helix\\backend\\backups\\20251022_165936",
+    "local": true,
+    "cloud": []
+  },
+  "policy": {
+    "replicas": 1,
+    "encrypted": false
+  }
+}

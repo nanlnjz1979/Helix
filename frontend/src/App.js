@@ -27,6 +27,7 @@ import AdminTemplateReview from './pages/AdminTemplateReview';
 import StrategyCreate from './pages/StrategyCreate';
 import StrategyEdit from './pages/StrategyEdit';
 import StrategyClone from './pages/StrategyClone';
+import AdminBackup from './pages/AdminBackup';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
@@ -93,6 +94,13 @@ function App() {
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminCategoryDetails />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        <Route path="/admin/backup" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminBackup />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />
