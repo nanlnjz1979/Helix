@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, Form, Select, DatePicker, InputNumber, Button, Tabs, Table, message, Input, Progress } from 'antd';
 import { PlayCircleOutlined, CodeOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+import * as echarts from 'echarts';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -38,6 +39,45 @@ const Backtest = () => {
   const [strategiesData, setStrategiesData] = useState([]);
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [runLogs, setRunLogs] = useState([]);
+  const [tradePageSize, setTradePageSize] = useState(10);
+  const klineChartRef = useRef(null);
+  const returnsChartRef = useRef(null);
+  const klineCardRef = useRef(null);
+
+  const focusOnTrade = (record) => {
+    try {
+      const sd = Array.isArray(jsonResult?.stockdata) ? jsonResult.stockdata : [];
+      const categories = sd.map(i => i.trade_date || i.date || i.datetime || i.time);
+      const categoriesMap = new Map();
+      categories.forEach((d, idx) => { if (d != null) categoriesMap.set(String(d), idx); });
+      const dt = String(record?.datetime || record?.date || record?.trade_date || '');
+      if (!dt) return;
+      const idx = categoriesMap.has(dt) ? categoriesMap.get(dt) : categories.indexOf(dt);
+      if (typeof idx !== 'number' || idx < 0) return;
+      const n = Math.max(categories.length - 1, 1);
+      const rangeBars = 50; // 展示窗口大小（可根据需要调整）
+      const half = Math.floor(rangeBars / 2);
+      const startIdx = Math.max(0, idx - half);
+      const endIdx = Math.min(categories.length - 1, idx + half);
+      const startPct = Math.max(0, Math.min(100, (startIdx / n) * 100));
+      const endPct = Math.max(0, Math.min(100, (endIdx / n) * 100));
+      const kinst = klineChartRef.current?.getEchartsInstance?.();
+      const rinst = returnsChartRef.current?.getEchartsInstance?.();
+      if (kinst) {
+        kinst.dispatchAction({ type: 'dataZoom', start: startPct, end: endPct });
+      }
+      if (rinst) {
+        rinst.dispatchAction({ type: 'dataZoom', start: startPct, end: endPct });
+      }
+      if (klineCardRef.current) {
+        try { klineCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+      }
+    } catch (e) {
+      console.error('定位交易记录到图表失败:', e);
+    }
+  };
+
+  // 重复声明移除：使用顶部定义的 tradePageSize
 
   useEffect(() => {
     const fetchStrategies = async () => {
@@ -313,7 +353,7 @@ const Backtest = () => {
                 <Card title={`标的信息：${jsonResult?.stock?.stock_name || ''} (${jsonResult?.stock?.stock_num || ''})`} style={{ marginBottom: 16 }}>
                   <div style={{ color: '#666' }}>交易条数：{jsonResult.transaction_count}</div>
                 </Card>
-                <Card title="K线与成交量" style={{ marginBottom: 16 }}>
+                <Card title="K线与成交量" style={{ marginBottom: 16 }} ref={klineCardRef}>
                   <ReactECharts option={(function(){
                     const sd = Array.isArray(jsonResult.stockdata) ? jsonResult.stockdata : [];
                     const categories = sd.map(i => i.trade_date || i.date || i.datetime || i.time);
@@ -332,19 +372,21 @@ const Backtest = () => {
                       const idx = categoriesMap.has(dt) ? categoriesMap.get(dt) : categories.indexOf(dt);
                       if (typeof idx !== 'number' || idx < 0) return;
                       const side = (t.type || t.side || '').toString();
-                      let price = typeof t.price === 'number' ? t.price : undefined;
-                      if (price == null && typeof t.value === 'number' && typeof t.amount === 'number' && t.amount !== 0) {
-                        price = t.value / t.amount;
-                      }
-                      if (price == null && sd[idx] && typeof sd[idx].close === 'number') {
-                        price = sd[idx].close;
-                      }
-                      if (price == null) return;
-                      const point = [idx, price];
+                      // 计算相对于K线的上下方位置，避免覆盖蜡烛
+                      const h = sd[idx]?.high;
+                      const l = sd[idx]?.low;
+                      const c = sd[idx]?.close;
+                      const baseRange = (typeof h === 'number' && typeof l === 'number' && h > l)
+                        ? (h - l)
+                        : (typeof c === 'number' ? Math.max(c * 0.01, 0.01) : 0.01);
+                      const offset = baseRange * 0.05; // 5% 的蜡烛高度作为偏移
+                      const markerBuyY = (typeof l === 'number') ? (l - offset) : (typeof c === 'number' ? (c - offset) : undefined);
+                      const markerSellY = (typeof h === 'number') ? (h + offset) : (typeof c === 'number' ? (c + offset) : undefined);
+                      if (markerBuyY == null && markerSellY == null) return;
                       if (side.includes('买') || side.toLowerCase() === 'buy' || (typeof t.amount === 'number' && t.amount > 0)) {
-                        buyPoints.push(point);
+                        buyPoints.push([idx, markerBuyY != null ? markerBuyY : (c != null ? c - offset : h != null ? h - offset : l != null ? l - offset : 0)]);
                       } else if (side.includes('卖') || side.toLowerCase() === 'sell' || (typeof t.amount === 'number' && t.amount < 0)) {
-                        sellPoints.push(point);
+                        sellPoints.push([idx, markerSellY != null ? markerSellY : (c != null ? c + offset : h != null ? h + offset : l != null ? l + offset : 0)]);
                       }
                     });
 
@@ -367,24 +409,45 @@ const Backtest = () => {
                       series: [
                         { name: 'K线', type: 'candlestick', data: kline },
                         { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volume },
-                        { name: '卖点', type: 'scatter', data: buyPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 180, itemStyle: { color: '#52c41a' }, z: 10 },
-                        { name: '买点', type: 'scatter', data: sellPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 0,itemStyle: { color: '#f5222d' }, z: 10 }
+                        { name: '买点', type: 'scatter', data: buyPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 0, itemStyle: { color: '#52c41a' }, z: 10 },
+                        { name: '卖点', type: 'scatter', data: sellPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 180, itemStyle: { color: '#f5222d' }, z: 10 }
                       ]
                     };
-                  })()} style={{ height: 600 }} />
+                  })()} style={{ height: 600 }} ref={klineChartRef} onChartReady={(chart) => { try { chart.group = 'bt-sync'; echarts.connect('bt-sync'); } catch (e) {} }} />
                 </Card>
                 <Card title="时间序列收益" style={{ marginBottom: 16 }}>
                   <ReactECharts option={(function(){
                     const tr = jsonResult.time_returns || {};
-                  const dates = Object.keys(tr);
-                  const values = dates.map(d => tr[d]);
+                    const entries = Object.entries(tr).filter(([d, v]) => d != null);
+                    // 按日期排序，确保与主图时间轴一致的顺序
+                    entries.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+                    const dates = entries.map(([d]) => d);
+                    const daily = entries.map(([_, v]) => Number(v) || 0);
+                    // 复利累计收益：从1开始的净值曲线，累计收益为净值-1
+                    let equity = 1;
+                    const cumulative = daily.map((r) => {
+                      equity *= (1 + r);
+                      return Number((equity - 1).toFixed(6));
+                    });
                     return {
-                      tooltip: { trigger: 'axis' },
-                      xAxis: { type: 'category', data: dates },
-                      yAxis: { type: 'value' },
-                      series: [{ name: '收益', type: 'line', data: values, smooth: true }]
+                      tooltip: { 
+                        trigger: 'axis',
+                        valueFormatter: (val) => `${(Number(val) * 100).toFixed(2)}%`
+                      },
+                      xAxis: { type: 'category', data: dates, boundaryGap: false },
+                      yAxis: { 
+                        type: 'value', 
+                        scale: true,
+                        axisLabel: { formatter: (val) => `${(Number(val) * 100).toFixed(2)}%` }
+                      },
+                      grid: { left: '10%', right: '10%', top: '10%', bottom: 40 },
+                      dataZoom: [
+                        { type: 'slider', realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
+                        { type: 'inside', realtime: true }
+                      ],
+                      series: [{ name: '累计收益', type: 'line', data: cumulative, smooth: true }]
                     };
-                  })()} style={{ height: 300 }} />
+                  })()} style={{ height: 300 }} ref={returnsChartRef} onChartReady={(chart) => { try { chart.group = 'bt-sync'; echarts.connect('bt-sync'); } catch (e) {} }} />
                 </Card>
                 <Card title="指标汇总" style={{ marginBottom: 16 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
@@ -437,11 +500,12 @@ const Backtest = () => {
                       { title: 'SID', dataIndex: 'sid' }
                     ]}
                     dataSource={Array.isArray(jsonResult.transactions) ? jsonResult.transactions : []}
-                    pagination={{ pageSize: 10 }}
+                    pagination={{ pageSize: tradePageSize, showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], onShowSizeChange: (current, size) => setTradePageSize(size), onChange: (page, size) => setTradePageSize(size) }}
                     onRow={(record, index) => ({
                       style: {
                         backgroundColor: (index % 2 === 0) ? '#fffffeff' : '#b4e0ffff'
-                      }
+                      },
+                      onClick: () => focusOnTrade(record)
                     })}
                   />
                 </Card>
@@ -457,3 +521,5 @@ const Backtest = () => {
 };
 
 export default Backtest;
+
+// 重复声明移除：使用顶部定义的 tradePageSize
