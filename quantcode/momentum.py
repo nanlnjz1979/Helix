@@ -270,11 +270,11 @@ def generate_complete_performance_json(strat, results,stock_data,symbol,start_da
             # Ensure proper type conversion for JSON serialization
             transaction = {
                 'datetime': datetime_str,
-                'amount': float(trans[0]),  # Convert to float for consistency
-                'price': float(trans[1]),
+                'amount': round(float(trans[0]), 2),  # 保留两位小数
+                'price': float(trans[1]),   # 保留两位小数
                 'sid': str(trans[2]),       # Convert to string to handle any ID type
                 'symbol': str(trans[3]),    # Ensure symbol is string
-                'value': float(trans[4])
+                'value': round(float(trans[4]), 2)
             }
             transactions_list.append(transaction)
     
@@ -339,7 +339,8 @@ def generate_complete_performance_json(strat, results,stock_data,symbol,start_da
         try:
             time_str = bt.num2date(timestamp).isoformat()
         except:
-            time_str = str(timestamp)
+            time_str = str(timestamp.strftime("%Y%m%d"))
+    
         time_returns_dict[time_str] = round(float(ret), 6)
     
     performance['time_returns'] = time_returns_dict

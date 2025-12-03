@@ -256,6 +256,39 @@ router.get('/results/:jobId', (req, res) => {
   res.json(job.result);
 });
 
+// 保存回测结果到策略
+router.post('/save-results/:strategyId', async (req, res) => {
+  try {
+    const { strategyId } = req.params;
+    const { results } = req.body;
+    
+    if (!results) {
+      return res.status(400).json({ message: '回测结果不能为空' });
+    }
+    
+    // 更新策略表，保存回测结果
+    const Strategy = require('../models/Strategy');
+    const updatedStrategy = await Strategy.findByIdAndUpdate(
+      strategyId,
+      {
+        backtestResults: results,
+        backtestStatus: 'completed',
+        lastBacktestAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!updatedStrategy) {
+      return res.status(404).json({ message: '策略不存在' });
+    }
+    
+    res.json({ message: '回测结果保存成功', strategy: updatedStrategy });
+  } catch (err) {
+    console.error('保存回测结果失败:', err);
+    res.status(500).json({ message: '保存回测结果失败', error: err.message });
+  }
+});
+
 // SSE 进度与日志流
 router.get('/stream/:jobId', (req, res) => {
   const jobId = req.params.jobId;

@@ -62,6 +62,19 @@ if (mongoose.models.Strategy) {
     updatedAt: {
       type: Date,
       default: Date.now
+    },
+    // 回测结果相关字段
+    backtestResults: {
+      type: Object,
+      default: null
+    },
+    backtestStatus: {
+      type: String,
+      enum: ['none', 'running', 'completed', 'failed'],
+      default: 'none'
+    },
+    lastBacktestAt: {
+      type: Date
     }
   });
 

@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Card, Form, Select, DatePicker, InputNumber, Button, Tabs, Table, message, Input, Progress } from 'antd';
-import { PlayCircleOutlined, CodeOutlined } from '@ant-design/icons';
+import { Card, Form, Select, InputNumber, Button, Tabs, Table, message, Input, Progress } from 'antd';
+import { PlayCircleOutlined, CodeOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
-import * as echarts from 'echarts';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
-const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
 // 代码查看器（仿代码编辑器样式，只读）
@@ -34,48 +32,79 @@ const Backtest = () => {
   const [jsonResult, setJsonResult] = useState(null);
   const [runProgress, setRunProgress] = useState(0);
   const [topActiveTab, setTopActiveTab] = useState('config');
-  const [activeRunTab, setActiveRunTab] = useState('summary');
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [strategiesData, setStrategiesData] = useState([]);
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [runLogs, setRunLogs] = useState([]);
-  const [tradePageSize, setTradePageSize] = useState(10);
-  const klineChartRef = useRef(null);
+  const [tradePageSize, setTradePageSize] = useState(24);
+  const [tradeScrollY, setTradeScrollY] = useState(600);
   const returnsChartRef = useRef(null);
   const klineCardRef = useRef(null);
+  const tradeTableContainerRef = useRef(null);
 
-  const focusOnTrade = (record) => {
-    try {
-      const sd = Array.isArray(jsonResult?.stockdata) ? jsonResult.stockdata : [];
-      const categories = sd.map(i => i.trade_date || i.date || i.datetime || i.time);
-      const categoriesMap = new Map();
-      categories.forEach((d, idx) => { if (d != null) categoriesMap.set(String(d), idx); });
-      const dt = String(record?.datetime || record?.date || record?.trade_date || '');
-      if (!dt) return;
-      const idx = categoriesMap.has(dt) ? categoriesMap.get(dt) : categories.indexOf(dt);
-      if (typeof idx !== 'number' || idx < 0) return;
-      const n = Math.max(categories.length - 1, 1);
-      const rangeBars = 50; // 展示窗口大小（可根据需要调整）
-      const half = Math.floor(rangeBars / 2);
-      const startIdx = Math.max(0, idx - half);
-      const endIdx = Math.min(categories.length - 1, idx + half);
-      const startPct = Math.max(0, Math.min(100, (startIdx / n) * 100));
-      const endPct = Math.max(0, Math.min(100, (endIdx / n) * 100));
-      const kinst = klineChartRef.current?.getEchartsInstance?.();
-      const rinst = returnsChartRef.current?.getEchartsInstance?.();
-      if (kinst) {
-        kinst.dispatchAction({ type: 'dataZoom', start: startPct, end: endPct });
+  // 根据右侧容器可用高度，动态计算每页可显示的交易记录条数
+  useEffect(() => {
+    const compute = () => {
+      try {
+        const el = tradeTableContainerRef.current;
+        if (!el) return;
+        const total = el.clientHeight || 0;
+        if (!total) return;
+        const thead = el.querySelector('.ant-table-thead');
+        const pagination = el.querySelector('.ant-pagination') || el.querySelector('.ant-table-pagination');
+        const row = el.querySelector('.ant-table-row');
+        const headerH = (thead && thead.clientHeight) ? thead.clientHeight : 0;
+        const paginationH = (pagination && pagination.clientHeight) ? pagination.clientHeight : 0;
+        const rowH = (row && row.clientHeight) ? row.clientHeight : 40; // 小号表格约40px
+        const available = total - headerH - paginationH;
+        const ps = Math.max(1, Math.floor(available / rowH));
+        if (Number.isFinite(ps) && ps > 0 && ps !== tradePageSize) {
+          setTradePageSize(ps);
+        }
+      } catch {}
+    };
+    const t = setTimeout(compute, 200);
+    const onResize = () => compute();
+    window.addEventListener('resize', onResize);
+    return () => { clearTimeout(t); window.removeEventListener('resize', onResize); };
+  }, [jsonResult, tradePageSize]);
+  // 根据右侧容器可用高度，计算 Table 内部滚动区域高度，使滚轮滚动记录
+  useEffect(() => {
+    const computeScrollY = () => {
+      try {
+        const el = tradeTableContainerRef.current;
+        if (!el) return;
+        const total = el.clientHeight || 0;
+        if (!total) return;
+        const thead = el.querySelector('.ant-table-thead');
+        const headerH = (thead && thead.clientHeight) ? thead.clientHeight : 0;
+        const available = Math.max(0, total - headerH);
+        if (available && available !== tradeScrollY) {
+          setTradeScrollY(available);
+        }
+      } catch {};
+    };
+    const t = setTimeout(computeScrollY, 200);
+    const onResize = () => computeScrollY();
+    window.addEventListener('resize', onResize);
+    return () => { clearTimeout(t); window.removeEventListener('resize', onResize); };
+  }, [jsonResult, tradeScrollY]);
+
+  // Log backtest data to console when it's updated
+  useEffect(() => {
+    if (jsonResult) {
+      console.log('Backtest Data:', jsonResult);
+      // Also log trade counts for verification
+      if (jsonResult?.data?.return_analyzer?.trades) {
+        const trades = jsonResult.data.return_analyzer.trades;
+        console.log('Trade Counts:');
+        console.log('Total:', trades.length);
+        console.log('Buy:', trades.filter(t => (t.type || '').toLowerCase() === 'buy').length);
+        console.log('Sell:', trades.filter(t => (t.type || '').toLowerCase() === 'sell').length);
+        console.log('Other:', trades.filter(t => (t.type || '').toLowerCase() !== 'buy' && (t.type || '').toLowerCase() !== 'sell').length);
       }
-      if (rinst) {
-        rinst.dispatchAction({ type: 'dataZoom', start: startPct, end: endPct });
-      }
-      if (klineCardRef.current) {
-        try { klineCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
-      }
-    } catch (e) {
-      console.error('定位交易记录到图表失败:', e);
     }
-  };
+  }, [jsonResult]);
 
   // 重复声明移除：使用顶部定义的 tradePageSize
 
@@ -103,58 +132,6 @@ const Backtest = () => {
     (strategiesData || []).forEach(s => map.set(s.id || s._id, s));
     return map;
   }, [strategiesData]);
-  
-
-
-  const columns = [
-    {
-      title: '日期',
-      dataIndex: 'date',
-      key: 'date',
-    },
-    {
-      title: '股票',
-      dataIndex: 'symbol',
-      key: 'symbol',
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (text) => (
-        <span style={{ color: text === '买入' ? '#52c41a' : '#f5222d' }}>
-          {text}
-        </span>
-      ),
-    },
-    {
-      title: '价格',
-      dataIndex: 'price',
-      key: 'price',
-    },
-    {
-      title: '数量',
-      dataIndex: 'quantity',
-      key: 'quantity',
-    },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      key: 'amount',
-    },
-    {
-      title: '盈亏',
-      dataIndex: 'profit',
-      key: 'profit',
-      render: (text) => (
-        <span style={{ color: text >= 0 ? '#52c41a' : '#f5222d' }}>
-          {text >= 0 ? '+' : ''}{text}
-        </span>
-      ),
-    },
-  ];
-
-
 
   const handleStrategyChange = (val) => {
     const s = strategyMapById.get(val);
@@ -347,171 +324,496 @@ const Backtest = () => {
               )}
             </div>
           </TabPane>
-          <TabPane tab="回测结果(JSON)" key="result">
+          <TabPane tab="回测结果" key="result">
             {jsonResult ? (
               <div>
-                <Card title={`标的信息：${jsonResult?.stock?.stock_name || ''} (${jsonResult?.stock?.stock_num || ''})`} style={{ marginBottom: 16 }}>
-                  <div style={{ color: '#666' }}>交易条数：{jsonResult.transaction_count}</div>
+                <Card title={`策略类型：${jsonResult?.strategy_type || '未知'}`} style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: '#666' }}>回测完成时间：{new Date().toLocaleString()}</div>
+                    <Button type="primary" 
+                      onClick={async () => {
+                        try {
+                          const values = await form.validateFields();
+                          const strategyId = values.strategy;
+                          if (!strategyId) {
+                            message.error('请先选择策略');
+                            return;
+                          }
+                          await api.post(`/backtest/save-results/${strategyId}`, { results: jsonResult });
+                          message.success('回测结果保存成功');
+                        } catch (err) {
+                          console.error('保存回测结果失败:', err);
+                          message.error(`保存失败: ${err?.response?.data?.message || err.message}`);
+                        }
+                      }}
+                    >
+                      保存回测结果
+                    </Button>
+                  </div>
                 </Card>
-                <Card title="K线与成交量" style={{ marginBottom: 16 }} ref={klineCardRef}>
-                  <ReactECharts option={(function(){
-                    const sd = Array.isArray(jsonResult.stockdata) ? jsonResult.stockdata : [];
-                    const categories = sd.map(i => i.trade_date || i.date || i.datetime || i.time);
-                    const categoriesMap = new Map();
-                    categories.forEach((d, idx) => { if (d != null) categoriesMap.set(String(d), idx); });
-                    const kline = sd.map(i => [i.open, i.close, i.low, i.high]);
-                    const volume = sd.map(i => i.vol || i.volume || 0);
-
-                    // 从真实交易数据中提取买卖点
-                    const tx = Array.isArray(jsonResult.transactions) ? jsonResult.transactions : [];
-                    const buyPoints = [];
-                    const sellPoints = [];
-                    tx.forEach(t => {
-                      const dt = String(t.datetime || t.date || t.trade_date || '');
-                      if (!dt) return;
-                      const idx = categoriesMap.has(dt) ? categoriesMap.get(dt) : categories.indexOf(dt);
-                      if (typeof idx !== 'number' || idx < 0) return;
-                      const side = (t.type || t.side || '').toString();
-                      // 计算相对于K线的上下方位置，避免覆盖蜡烛
-                      const h = sd[idx]?.high;
-                      const l = sd[idx]?.low;
-                      const c = sd[idx]?.close;
-                      const baseRange = (typeof h === 'number' && typeof l === 'number' && h > l)
-                        ? (h - l)
-                        : (typeof c === 'number' ? Math.max(c * 0.01, 0.01) : 0.01);
-                      const offset = baseRange * 0.05; // 5% 的蜡烛高度作为偏移
-                      const markerBuyY = (typeof l === 'number') ? (l - offset) : (typeof c === 'number' ? (c - offset) : undefined);
-                      const markerSellY = (typeof h === 'number') ? (h + offset) : (typeof c === 'number' ? (c + offset) : undefined);
-                      if (markerBuyY == null && markerSellY == null) return;
-                      if (side.includes('买') || side.toLowerCase() === 'buy' || (typeof t.amount === 'number' && t.amount > 0)) {
-                        buyPoints.push([idx, markerBuyY != null ? markerBuyY : (c != null ? c - offset : h != null ? h - offset : l != null ? l - offset : 0)]);
-                      } else if (side.includes('卖') || side.toLowerCase() === 'sell' || (typeof t.amount === 'number' && t.amount < 0)) {
-                        sellPoints.push([idx, markerSellY != null ? markerSellY : (c != null ? c + offset : h != null ? h + offset : l != null ? l + offset : 0)]);
-                      }
-                    });
-
-                    return {
-                      tooltip: { trigger: 'axis' },
-                      xAxis: [
-                        { type: 'category', data: categories, boundaryGap: true },
-                        { type: 'category', gridIndex: 1, data: categories, boundaryGap: true }
-                      ],
-                      yAxis: [{ scale: true }, { gridIndex: 1 }],
-                      grid: [
-                        { left: '10%', right: '10%', height: '50%' },
-                        { left: '10%', right: '10%', top: '70%', height: '20%' }
-                      ],
-                      // 时间轴滑块下移一些，避免紧贴图表
-                      dataZoom: [
-                        { type: 'slider', xAxisIndex: [0, 1], realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
-                        { type: 'inside', xAxisIndex: [0, 1], realtime: true }
-                      ],
-                      series: [
-                        { name: 'K线', type: 'candlestick', data: kline },
-                        { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volume },
-                        { name: '买点', type: 'scatter', data: buyPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 0, itemStyle: { color: '#52c41a' }, z: 10 },
-                        { name: '卖点', type: 'scatter', data: sellPoints, symbol: 'triangle', symbolSize: 14, symbolRotate: 180, itemStyle: { color: '#f5222d' }, z: 10 }
-                      ]
-                    };
-                  })()} style={{ height: 600 }} ref={klineChartRef} onChartReady={(chart) => { try { chart.group = 'bt-sync'; echarts.connect('bt-sync'); } catch (e) {} }} />
-                </Card>
-                <Card title="时间序列收益" style={{ marginBottom: 16 }}>
-                  <ReactECharts option={(function(){
-                    const tr = jsonResult.time_returns || {};
-                    const entries = Object.entries(tr).filter(([d, v]) => d != null);
-                    // 按日期排序，确保与主图时间轴一致的顺序
-                    entries.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-                    const dates = entries.map(([d]) => d);
-                    const daily = entries.map(([_, v]) => Number(v) || 0);
-                    // 复利累计收益：从1开始的净值曲线，累计收益为净值-1
-                    let equity = 1;
-                    const cumulative = daily.map((r) => {
-                      equity *= (1 + r);
-                      return Number((equity - 1).toFixed(6));
-                    });
-                    return {
-                      tooltip: { 
-                        trigger: 'axis',
-                        valueFormatter: (val) => `${(Number(val) * 100).toFixed(2)}%`
-                      },
-                      xAxis: { type: 'category', data: dates, boundaryGap: false },
-                      yAxis: { 
-                        type: 'value', 
-                        scale: true,
-                        axisLabel: { formatter: (val) => `${(Number(val) * 100).toFixed(2)}%` }
-                      },
-                      grid: { left: '10%', right: '10%', top: '10%', bottom: 40 },
-                      dataZoom: [
-                        { type: 'slider', realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
-                        { type: 'inside', realtime: true }
-                      ],
-                      series: [{ name: '累计收益', type: 'line', data: cumulative, smooth: true }]
-                    };
-                  })()} style={{ height: 300 }} ref={returnsChartRef} onChartReady={(chart) => { try { chart.group = 'bt-sync'; echarts.connect('bt-sync'); } catch (e) {} }} />
-                </Card>
-                <Card title="指标汇总" style={{ marginBottom: 16 }}>
+                
+                {/* 指标汇总卡片 */}
+                <Card title="回测指标汇总" style={{ marginBottom: 16 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                     <div>
-                      <p style={{ color: '#666' }}>累计收益</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.returns?.cumulative_return ?? 0)}</p>
-                    </div>
-                    <div>
-                      <p style={{ color: '#666' }}>年化收益%</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.returns?.annualized_return_pct ?? 0)}</p>
-                    </div>
-                    <div>
-                      <p style={{ color: '#666' }}>日均收益</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.returns?.avg_daily_return ?? 0)}</p>
-                    </div>
-                    <div>
-                      <p style={{ color: '#666' }}>最大回撤%</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.drawdown?.max_drawdown_pct ?? 0)}</p>
-                    </div>
-                    <div>
-                      <p style={{ color: '#666' }}>最大回撤天数</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.drawdown?.max_drawdown_days ?? 0)}</p>
-                    </div>
-                    <div>
-                      <p style={{ color: '#666' }}>当前回撤%</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.drawdown?.current_drawdown_pct ?? 0)}</p>
+                      <p style={{ color: '#666' }}>总收益</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
+                        {(jsonResult?.data?.returns_analyzer?.rtot * 100).toFixed(2)}%
+                      </p>
                     </div>
                     <div>
                       <p style={{ color: '#666' }}>夏普比率</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.risk_metrics?.sharpe_ratio ?? 0)}</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
+                        {(jsonResult?.data?.return_analyzer?.sharpe_ratio || 0).toFixed(2)}
+                      </p>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>交易统计</p>
-                      <p style={{ fontWeight: 'bold' }}>{`总:${jsonResult.trade_statistics?.total_trades ?? 0} 胜:${jsonResult.trade_statistics?.winning_trades ?? 0} 负:${jsonResult.trade_statistics?.losing_trades ?? 0} 胜率:${jsonResult.trade_statistics?.win_rate_pct ?? 0}%`}</p>
+                      <p style={{ color: '#666' }}>交易次数</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
+                        {jsonResult?.data?.trade_analyzer?.total?.total || 0}
+                      </p>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>系统质量(SQN)</p>
-                      <p style={{ fontWeight: 'bold' }}>{(jsonResult.system_quality?.sqn ?? 0)}</p>
+                      <p style={{ color: '#666' }}>盈利交易</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
+                        {jsonResult?.data?.trade_analyzer?.won?.total || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666' }}>亏损交易</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#f5222d' }}>
+                        {jsonResult?.data?.trade_analyzer?.lost?.total || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666' }}>最大回撤</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
+                        {(jsonResult?.data?.drawdown_analyzer?.max?.drawdown * 100).toFixed(2)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666' }}>SQN</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
+                        {(jsonResult?.data?.sqn_analyzer?.sqn || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666' }}>平均收益</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
+                        {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.average || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666' }}>总盈利</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
+                        {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.total || 0).toFixed(2)}
+                      </p>
                     </div>
                   </div>
                 </Card>
-                <Card title="交易记录" style={{ marginBottom: 16 }}>
-                  <Table
-                    columns={[
-                      { title: '时间', dataIndex: 'datetime' },
-                      { title: '数量', dataIndex: 'amount' },
-                      { title: '价格', dataIndex: 'price' },
-                      { title: '标的', dataIndex: 'symbol' },
-                      { title: '值', dataIndex: 'value' },
-                      { title: 'SID', dataIndex: 'sid' }
-                    ]}
-                    dataSource={Array.isArray(jsonResult.transactions) ? jsonResult.transactions : []}
-                    pagination={{ pageSize: tradePageSize, showSizeChanger: true, pageSizeOptions: ['10','20','50','100'], onShowSizeChange: (current, size) => setTradePageSize(size), onChange: (page, size) => setTradePageSize(size) }}
-                    onRow={(record, index) => ({
-                      style: {
-                        backgroundColor: (index % 2 === 0) ? '#fffffeff' : '#b4e0ffff'
-                      },
-                      onClick: () => focusOnTrade(record)
-                    })}
-                  />
+                {/* 图表区域 */}
+                <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
+                  <div style={{ flex: 4, minWidth: 0 }}>
+                    {/* K线图 */}
+                    <Card title="K线图" style={{ marginBottom: 16 }} ref={klineCardRef}>
+                      <ReactECharts option={(function(){
+                        // 使用总收益数据绘制K线图，保留两位小数
+                        const totalReturns = jsonResult?.data?.return_analyzer?.total_returns || [];
+                        const dates = totalReturns.map(item => item.date);
+                        const klineData = totalReturns.map(item => [
+                          parseFloat(item.open.toFixed(2)),
+                          parseFloat(item.close.toFixed(2)),
+                          parseFloat(item.low.toFixed(2)),
+                          parseFloat(item.high.toFixed(2))
+                        ]);
+                        
+                        return {
+                          tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                              type: 'cross'
+                            }
+                          },
+                          xAxis: {
+                            type: 'category',
+                            data: dates,
+                            boundaryGap: true
+                          },
+                          yAxis: {
+                            type: 'value',
+                            scale: true
+                          },
+                          grid: {
+                            left: '6%',
+                            right: '6%',
+                            top: '10%',
+                            bottom: '15%',
+                            containLabel: true
+                          },
+                          dataZoom: [
+                            { type: 'slider', realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
+                            { type: 'inside', realtime: true }
+                          ],
+                          series: [
+                            {
+                              name: 'K线',
+                              type: 'candlestick',
+                              data: klineData,
+                              itemStyle: {
+                                color: '#52c41a',
+                                color0: '#f5222d',
+                                borderColor: '#52c41a',
+                                borderColor0: '#f5222d'
+                              }
+                            }
+                          ]
+                        };
+                      })()} style={{ height: 400 }} ref={returnsChartRef} />
+                    </Card>
+                    
+                    {/* 持仓收益曲线 */}
+                    <Card title="持仓收益曲线" style={{ marginBottom: 16 }}>
+                      <ReactECharts option={(function(){
+                        // 使用持仓收益数据绘制曲线，保留两位小数
+                        const positionReturns = jsonResult?.data?.return_analyzer?.position_returns || [];
+                        const dates = positionReturns.map(item => item.date);
+                        const openValues = positionReturns.map(item => parseFloat(item.open.toFixed(2)));
+                        const closeValues = positionReturns.map(item => parseFloat(item.close.toFixed(2)));
+                        
+                        return {
+                          tooltip: {
+                            trigger: 'axis'
+                          },
+                          xAxis: {
+                            type: 'category',
+                            data: dates,
+                            boundaryGap: false
+                          },
+                          yAxis: {
+                            type: 'value'
+                          },
+                          grid: {
+                            left: '6%',
+                            right: '6%',
+                            top: '10%',
+                            bottom: '15%',
+                            containLabel: true
+                          },
+                          dataZoom: [
+                            { type: 'slider', realtime: true, start: 0, end: 100, bottom: 8, height: 24 },
+                            { type: 'inside', realtime: true }
+                          ],
+                          series: [
+                            {
+                              name: '持仓收益(开盘)',
+                              type: 'line',
+                              data: openValues,
+                              smooth: true,
+                              itemStyle: {
+                                color: '#52c41a'
+                              }
+                            },
+                            {
+                              name: '持仓收益(收盘)',
+                              type: 'line',
+                              data: closeValues,
+                              smooth: true,
+                              itemStyle: {
+                                color: '#1890ff'
+                              }
+                            }
+                          ]
+                        };
+                      })()} style={{ height: 400 }} />
+                    </Card>
+                  </div>
+                  
+                  {/* 右侧交易记录和矩形树图 */}
+                  <div style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* 交易记录 */}
+                    <Card title={
+                      <span>
+                        交易记录
+                        <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>
+                          总: {Array.isArray(jsonResult?.data?.return_analyzer?.trades) ? jsonResult.data.return_analyzer.trades.length : 0}
+                          <span style={{ marginLeft: 8 }}>
+                            <ArrowUpOutlined style={{ color: '#52c41a', marginRight: 2 }} />{Array.isArray(jsonResult?.data?.return_analyzer?.trades) ? jsonResult.data.return_analyzer.trades.filter(t => (t.type || '').toLowerCase() === 'buy').length : 0}/
+                            <ArrowDownOutlined style={{ color: '#f5222d', marginRight: 2, marginLeft: 4 }} />{Array.isArray(jsonResult?.data?.return_analyzer?.trades) ? jsonResult.data.return_analyzer.trades.filter(t => (t.type || '').toLowerCase() === 'sell').length : 0}
+                          </span>
+                        </span>
+                      </span>
+                    } style={{ marginBottom: 0 }}>
+                      <div ref={tradeTableContainerRef} className="trade-scroll-container" style={{ height: 400, overflowY: 'auto' }}>
+                        <Table size="small" className="trade-table"
+                          columns={[
+                            {
+                              title: '类型',
+                              dataIndex: 'type',
+                              key: 'type',
+                              width: 50,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              ),
+                              render: (text) => {
+                                const type = (text || '').toLowerCase();
+                                return (
+                                  <span style={{ color: type === 'buy' ? '#52c41a' : '#f5222d', fontSize: '16px' }}>
+                                    {type === 'buy' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                                  </span>
+                                );
+                              }
+                            },
+                            {
+                              title: '时间',
+                              dataIndex: 'time',
+                              key: 'time',
+                              width: 100,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              ),
+                              render: (text) => {
+                                // 只显示日期部分，不显示时间部分
+                                return text.split(' ')[0];
+                              }
+                            },
+                            {
+                              title: '标的',
+                              dataIndex: 'symbol',
+                              key: 'symbol',
+                              width: 90,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              )
+                            },
+                            {
+                              title: '价格',
+                              dataIndex: 'price',
+                              key: 'price',
+                              width: 80,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              ),
+                              render: (text) => parseFloat(text).toFixed(2)
+                            },
+                            {
+                              title: '数量',
+                              dataIndex: 'size',
+                              key: 'size',
+                              width: 90,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              ),
+                              render: (text) => parseFloat(Math.abs(Number(text))).toFixed(2)
+                            },
+                            {
+                              title: '金额',
+                              dataIndex: 'value',
+                              key: 'value',
+                              width: 100,
+                              headerCell: (props) => (
+                                <th {...props} style={{ textAlign: 'center' }}>{props.children}</th>
+                              ),
+                              render: (text) => parseFloat(text).toFixed(2)
+                            }
+                          ]}
+                          dataSource={Array.isArray(jsonResult?.data?.return_analyzer?.trades) ? jsonResult.data.return_analyzer.trades : []}
+                          pagination={false}
+                          scroll={{ y: 360, x: 'max-content' }}
+                          rowKey={(record, index) => index}
+                        />
+                      </div>
+                    </Card>
+                    
+                    {/* 矩形树图 - 股票盈亏分布 */}
+                    <Card title="股票盈亏分布">
+                      <ReactECharts option={(function(){
+                        // 计算每个股票的盈亏
+                        const trades = Array.isArray(jsonResult?.data?.return_analyzer?.trades) ? jsonResult.data.return_analyzer.trades : [];
+                        const stockProfitMap = new Map();
+                        
+                        // 按股票分组，计算盈亏
+                        trades.forEach(trade => {
+                          const symbol = trade.symbol;
+                          const type = (trade.type || '').toLowerCase();
+                          const value = parseFloat(trade.value);
+                          const commission = parseFloat(trade.commission || 0);
+                          
+                          if (!stockProfitMap.has(symbol)) {
+                            stockProfitMap.set(symbol, { symbol, profit: 0, buyValue: 0, sellValue: 0, buyCommissions: 0, sellCommissions: 0 });
+                          }
+                          
+                          const stockData = stockProfitMap.get(symbol);
+                          if (type === 'buy') {
+                            stockData.buyValue += value;
+                            stockData.buyCommissions += commission;
+                          } else if (type === 'sell') {
+                            stockData.sellValue += value;
+                            stockData.sellCommissions += commission;
+                          }
+                          // 计算盈亏：(卖出总额 - 卖出佣金) - (买入总额 + 买入佣金)
+                          stockData.profit = (stockData.sellValue - stockData.sellCommissions) - (stockData.buyValue + stockData.buyCommissions);
+                        });
+                       
+                        // 转换为矩形树图数据格式
+                        const treeData = {
+                          name: '',
+                          children: Array.from(stockProfitMap.values()).map(stock => ({
+                            name: stock.symbol,
+                            value: Math.abs(stock.profit),
+                            profit: stock.profit
+                          }))
+                        };
+                        
+                        // 计算最大绝对值，用于颜色映射
+                        const maxAbsProfit = Math.max(...Array.from(stockProfitMap.values()).map(stock => Math.abs(stock.profit)), 1);
+                        
+                        return {
+                          tooltip: {
+                            formatter: function(params) {
+                              const data = params.data;
+                              if (data.profit !== undefined) {
+                                return `${data.name}<br/>盈亏: ${data.profit.toFixed(2)}`;
+                              } else {
+                                return `${data.name}`;
+                              }
+                            }
+                          },
+                          series: [{
+                            type: 'treemap',
+                            data: [treeData],
+                            roam: false,
+                            nodeClick: false,
+                            
+                            
+                            label: {
+                              show: true,
+                              formatter: '{b}'
+                            },
+                            upperLabel: {
+                              show: false
+                            },
+                            breadcrumb: {
+                              show: false           // 关闭面包屑
+                            },
+                            itemStyle: {
+                              borderColor: '#fff',
+                              borderWidth: 1,
+                              color: function(params) {
+                                const profit = params.data.profit;
+                                const ratio = Math.abs(profit) / maxAbsProfit;
+                                if (profit > 0) {
+                                  // 盈利：绿色系，深度随盈利增加而加深
+                                  return `rgba(82, 196, 26, ${0.5 + ratio * 0.5})`;
+                                } else {
+                                  // 亏损：红色系，深度随亏损增加而加深
+                                  return `rgba(245, 34, 45, ${0.5 + ratio * 0.5})`;
+                                }
+                              }
+                            },
+                            levels: [{
+                              upperLabel: {
+                                show: false  // 在 levels 中再次关闭
+                              },
+                              itemStyle: {
+                                borderWidth: 0,
+                                gapWidth: 1
+                              }
+                            }]
+                          }]
+                        };
+                      })()} style={{ height: 400 }} />
+                    </Card>
+                  </div>
+                </div>
+                {/* 详细交易分析 */}
+                <Card title="交易分析" style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+                    <div>
+                      <h4 style={{ marginBottom: 12, color: '#333' }}>交易概览</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>总交易数</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16 }}>{jsonResult?.data?.trade_analyzer?.total?.total || 0}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>已平仓</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16 }}>{jsonResult?.data?.trade_analyzer?.total?.closed || 0}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>未平仓</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16 }}>{jsonResult?.data?.trade_analyzer?.total?.open || 0}</p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>胜率</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#52c41a' }}>
+                            {jsonResult?.data?.trade_analyzer?.won?.total > 0 ? 
+                              ((jsonResult.data.trade_analyzer.won.total / jsonResult.data.trade_analyzer.total.total) * 100).toFixed(2) : 
+                              '0.00'}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 style={{ marginBottom: 12, color: '#333' }}>盈亏分析</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>总盈利</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#52c41a' }}>
+                            {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.total || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>平均盈利</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#52c41a' }}>
+                            {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.average || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>最大盈利</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#52c41a' }}>
+                            {(jsonResult?.data?.trade_analyzer?.won?.pnl?.max || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ color: '#666', marginBottom: 4 }}>最大亏损</p>
+                          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#f5222d' }}>
+                            {(jsonResult?.data?.trade_analyzer?.lost?.pnl?.max || 0).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+                
+                {/* 回撤分析 */}
+                <Card title="回撤分析" style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                    <div>
+                      <p style={{ color: '#666', marginBottom: 4 }}>最大回撤</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#f5222d' }}>
+                        {(jsonResult?.data?.drawdown_analyzer?.max?.drawdown * 100).toFixed(2)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666', marginBottom: 4 }}>最大回撤金额</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#f5222d' }}>
+                        {(jsonResult?.data?.drawdown_analyzer?.max?.moneydown || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ color: '#666', marginBottom: 4 }}>回撤时长</p>
+                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
+                        {jsonResult?.data?.drawdown_analyzer?.max?.len || 0} 天
+                      </p>
+                    </div>
+                  </div>
                 </Card>
               </div>
             ) : (
-              <div style={{ color: '#999' }}>暂无回测结果。请在“回测运行与结果”页签点击“开始回测”后查看。</div>
+              <div style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>
+                暂无回测结果。请在“回测运行与结果”页签点击“开始回测”后查看。
+              </div>
             )}
           </TabPane>
         </Tabs>
