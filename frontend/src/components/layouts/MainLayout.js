@@ -66,6 +66,12 @@ const MainLayout = ({ children }) => {
       onClick: () => navigate('/market')
     },
     {
+      key: 'my-strategies',
+      icon: <CodeOutlined />,
+      label: '我的策略',
+      onClick: () => navigate('/my-strategies')
+    },
+    {
       key: 'strategy',
       icon: <CodeOutlined />,
       label: '交易策略',

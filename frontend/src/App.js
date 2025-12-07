@@ -9,7 +9,9 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Market from './pages/Market';
 import Strategy from './pages/Strategy';
+import MyStrategies from './pages/MyStrategies';
 import Backtest from './pages/Backtest';
+import BacktestResult from './pages/BacktestResult';
 import Trading from './pages/Trading';
 import Profile from './pages/Profile';
 import FAQ from './pages/FAQ';
@@ -157,6 +159,13 @@ function App() {
             </MainLayout>
           </AuthPrivateRoute>
         } />
+        <Route path="/my-strategies" element={
+          <AuthPrivateRoute>
+            <MainLayout>
+              <MyStrategies />
+            </MainLayout>
+          </AuthPrivateRoute>
+        } />
         <Route path="/strategy" element={
           <AuthPrivateRoute>
             <MainLayout>
@@ -182,6 +191,13 @@ function App() {
           <AuthPrivateRoute>
             <MainLayout>
               <StrategyClone />
+            </MainLayout>
+          </AuthPrivateRoute>
+        } />
+        <Route path="/strategy/backtest/:strategyId" element={
+          <AuthPrivateRoute>
+            <MainLayout>
+              <BacktestResult />
             </MainLayout>
           </AuthPrivateRoute>
         } />

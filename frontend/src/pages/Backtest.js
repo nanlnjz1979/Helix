@@ -356,58 +356,76 @@ const Backtest = () => {
                 <Card title="回测指标汇总" style={{ marginBottom: 16 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                     <div>
-                      <p style={{ color: '#666' }}>总收益</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
-                        {(jsonResult?.data?.returns_analyzer?.rtot * 100).toFixed(2)}%
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>总收益</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a', margin: 0 }}>
+                          {(jsonResult?.data?.returns_analyzer?.rtot * 100).toFixed(2)}%
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>夏普比率</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
-                        {(jsonResult?.data?.return_analyzer?.sharpe_ratio || 0).toFixed(2)}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>夏普比率</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, margin: 0 }}>
+                          {(jsonResult?.data?.return_analyzer?.sharpe_ratio || 0).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>交易次数</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
-                        {jsonResult?.data?.trade_analyzer?.total?.total || 0}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>交易次数</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, margin: 0 }}>
+                          {jsonResult?.data?.trade_analyzer?.total?.total || 0}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>盈利交易</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
-                        {jsonResult?.data?.trade_analyzer?.won?.total || 0}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>盈利交易</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a', margin: 0 }}>
+                          {jsonResult?.data?.trade_analyzer?.won?.total || 0}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>亏损交易</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#f5222d' }}>
-                        {jsonResult?.data?.trade_analyzer?.lost?.total || 0}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>亏损交易</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, color: '#f5222d', margin: 0 }}>
+                          {jsonResult?.data?.trade_analyzer?.lost?.total || 0}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>最大回撤</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
-                        {(jsonResult?.data?.drawdown_analyzer?.max?.drawdown * 100).toFixed(2)}%
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>最大回撤</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, margin: 0 }}>
+                          {(jsonResult?.data?.drawdown_analyzer?.max?.drawdown * 100).toFixed(2)}%
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>SQN</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18 }}>
-                        {(jsonResult?.data?.sqn_analyzer?.sqn || 0).toFixed(2)}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>SQN</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, margin: 0 }}>
+                          {(jsonResult?.data?.sqn_analyzer?.sqn || 0).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>平均收益</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
-                        {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.average || 0).toFixed(2)}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>平均收益</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a', margin: 0 }}>
+                          {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.average || 0).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                     <div>
-                      <p style={{ color: '#666' }}>总盈利</p>
-                      <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a' }}>
-                        {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.total || 0).toFixed(2)}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: '#666', fontSize: 14 }}>总盈利</span>
+                        <p style={{ fontWeight: 'bold', fontSize: 18, color: '#52c41a', margin: 0 }}>
+                          {(jsonResult?.data?.trade_analyzer?.pnl?.gross?.total || 0).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </Card>
