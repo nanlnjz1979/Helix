@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, Tabs, message } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, Select, message, Tag, Tooltip, Radio, Tabs, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CodeOutlined, CopyOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { categoryAPI } from '../services/categoryAPI';
@@ -75,54 +75,100 @@ const Strategy = () => {
       title: '策略名称',
       dataIndex: 'name',
       key: 'name',
+      align: 'center',
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
+      align: 'center',
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      align: 'center',
     },
     {
-      title: '状态',
+      title: '虚拟实盘',
       dataIndex: 'status',
       key: 'status',
-      render: (text) => (
-        <span style={{ color: text === '已启用' ? '#52c41a' : '#faad14' }}>
-          {text}
+      render: (text, record) => (
+        <Switch
+          checked={text === '已启用'}
+          onChange={(checked) => {
+            if (checked) {
+              handleEnable(record.id);
+            } else {
+              handleDisable(record.id);
+            }
+          }}
+          checkedChildren="实盘"
+          unCheckedChildren="禁用"
+        />
+      ),
+      align: 'center',
+    },
+    {
+      title: '运行状态',
+      key: 'runningStatus',
+      render: (_, record) => (
+        <span style={{
+          margin: 0, 
+          fontWeight: '500', 
+          fontSize: 14, 
+          color: (record.runningStatus === 'running' ? '#52c41a' : 
+                 record.runningStatus === 'paused' ? '#1890ff' : 
+                 record.runningStatus === 'error' ? '#f5222d' : '#faad14'),
+          backgroundColor: (record.runningStatus === 'running' ? '#f6ffed' : 
+                         record.runningStatus === 'paused' ? '#e6f7ff' : 
+                         record.runningStatus === 'error' ? '#fff2f0' : '#fffbe6'),
+          border: `1px solid ${(record.runningStatus === 'running' ? '#b7eb8f' : 
+                              record.runningStatus === 'paused' ? '#91d5ff' : 
+                              record.runningStatus === 'error' ? '#ffccc7' : '#ffe58f')}`,
+          padding: '2px 12px',
+          borderRadius: 12,
+          display: 'inline-block'
+        }}>
+          {record.runningStatus === 'running' && '运行中'}
+          {record.runningStatus === 'paused' && '已暂停'}
+          {record.runningStatus === 'error' && '错误'}
+          {record.runningStatus === 'stopped' && '已停止'}
+          {!record.runningStatus && '已停止'}
         </span>
       ),
+      align: 'center',
     },
-    {      title: '创建时间',      dataIndex: 'createdAt',      key: 'createdAt',      render: date => {        if (!date) return '-';        const dateObj = new Date(date);        return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleString();      }    },
+    {
+      title: '启动方式',
+      key: 'startMode',
+      render: (_, record) => (
+        <span style={{
+          margin: 0, 
+          fontWeight: '500', 
+          fontSize: 14, 
+          color: '#666',
+          backgroundColor: '#f0f0f0',
+          border: '1px solid #d9d9d9',
+          padding: '2px 12px',
+          borderRadius: 12,
+          display: 'inline-block'
+        }}>
+          {record.startMode === 'auto' && '自动'}
+          {record.startMode === 'scheduled' && '定时'}
+          {record.startMode === 'manual' && '手动'}
+          {!record.startMode && '手动'}
+        </span>
+      ),
+      align: 'center',
+    },
+    {      title: '创建时间',      dataIndex: 'createdAt',      key: 'createdAt',      render: date => {        if (!date) return '-';        const dateObj = new Date(date);        return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleString();      }, align: 'center'    },
     {
       title: '操作',
       key: 'action',
       render: (_, record) => (
         <>
-          {record.status === '已启用' ? (
-            <Button 
-              type="text" 
-              danger
-              icon={<CloseCircleOutlined />} 
-              onClick={() => handleDisable(record.id)}
-              style={{ marginRight: 8 }}
-            >
-              禁用
-            </Button>
-          ) : (
-            <Button 
-              type="text" 
-              icon={<CheckCircleOutlined />} 
-              onClick={() => handleEnable(record.id)}
-              style={{ marginRight: 8 }}
-            >
-              启用
-            </Button>
-          )}
           <Button 
             type="text" 
             icon={<EditOutlined />} 
@@ -194,11 +240,47 @@ const Strategy = () => {
     });
   };
 
+  // 获取当前用户ID
+  const getCurrentUserId = () => {
+    try {
+      const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      return obj.id || obj._id;
+    } catch (e) {
+      return null;
+    }
+  };
+
   const handleEnable = async (id) => {
     try {
+      // 1. 启用策略
       await api.put(`/strategies/${id}`, { status: '已启用' });
+      
+      // 2. 获取当前用户ID
+      const userId = getCurrentUserId();
+      if (!userId) {
+        throw new Error('无法获取当前用户ID');
+      }
+      
+      // 3. 为策略创建默认账户
+      await api.post('/simulator/account', {
+        strategiesId: id,
+        userId: userId,
+        gatewayName: 'CUSTOM',
+        balance: 100000.0,
+        available: 100000.0,
+        frozen: 0.0,
+        status: 'ACTIVE',
+        totalPnl: 0.0,
+        realizedPnl: 0.0,
+        unrealizedPnl: 0.0,
+        changeTime: new Date().toISOString(),
+        changeType: 'INITIAL'
+      });
+      
       setStrategies(prev => prev.map(s => s.id === id ? { ...s, status: '已启用' } : s));
-      message.success('策略已启用');
+      message.success('策略已启用，已创建默认账户');
     } catch (error) {
       console.error('启用策略失败:', error);
       message.error('启用失败：' + (error.response?.data?.message || error.message));
@@ -207,9 +289,20 @@ const Strategy = () => {
 
   const handleDisable = async (id) => {
     try {
+      // 1. 禁用策略
       await api.put(`/strategies/${id}`, { status: '未启用' });
+      
+      // 2. 删除策略相关的订单
+      await api.delete(`/orders/strategy/${id}`);
+      
+      // 3. 删除策略相关的持仓
+      await api.delete(`/simulator/positions/by-strategy/${id}`);
+      
+      // 4. 删除策略相关的账户
+      await api.delete(`/simulator/account/by-strategy/${id}`);
+      
       setStrategies(prev => prev.map(s => s.id === id ? { ...s, status: '未启用' } : s));
-      message.success('策略已禁用');
+      message.success('策略已禁用，已删除相关账户、持仓和订单');
     } catch (error) {
       console.error('禁用策略失败:', error);
       message.error('禁用失败：' + (error.response?.data?.message || error.message));

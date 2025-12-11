@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Tabs, Table, message, Button, Row, Col } from 'antd';
+import { Card, Tabs, Table, message, Button, Row, Col, Switch, Tag, Radio } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, PlayCircleOutlined, StopOutlined, SaveOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -34,6 +34,21 @@ const BacktestResult = () => {
   const [activeTabKey, setActiveTabKey] = useState(null); // 控制当前激活的选项卡
   const backtestSourceRef = useRef(null);
   
+  // 虚拟实盘相关状态
+  const [simulatorRunning, setSimulatorRunning] = useState(false);
+  const [simulatorStatus, setSimulatorStatus] = useState('idle'); // idle | running | success | error
+  const [simulatorLogs, setSimulatorLogs] = useState([]);
+  const [autoOrder, setAutoOrder] = useState(false);
+  const [realTimeMonitor, setRealTimeMonitor] = useState(true);
+  const [riskControl, setRiskControl] = useState(true);
+  const [maxDrawdown, setMaxDrawdown] = useState(10);
+  const [maxDailyLoss, setMaxDailyLoss] = useState(5);
+  const simulatorSourceRef = useRef(null);
+  
+  // 账户信息状态
+  const [accounts, setAccounts] = useState([]);
+  const [fetchingAccounts, setFetchingAccounts] = useState(false);
+  
   // 保存策略代码
   const saveStrategyCode = async () => {
     try {
@@ -47,6 +62,53 @@ const BacktestResult = () => {
       console.error('保存策略代码失败:', error);
     } finally {
       setSavingResult(false);
+    }
+  };
+  
+  // 虚拟实盘切换处理函数
+  const handleSimulatorToggle = async (start) => {
+    try {
+      // 1. 先更新策略的status字段
+      await api.put(`/strategies/${strategyId}`, {
+        status: start ? '已启用' : '未启用'
+      });
+      
+      // 2. 更新本地状态
+      setSimulatorRunning(start);
+      
+      if (start) {
+        // 启动虚拟实盘
+        setSimulatorStatus('success');
+        setSimulatorLogs(['虚拟实盘已启用']);
+        // 注意：后端启动虚拟实盘的API尚未实现，暂时跳过
+        // await api.post('/simulator/start', {
+        //   strategyId: strategyId,
+        //   autoOrder: autoOrder,
+        //   realTimeMonitor: realTimeMonitor,
+        //   riskControl: riskControl,
+        //   maxDrawdown: maxDrawdown,
+        //   maxDailyLoss: maxDailyLoss
+        // });
+      } else {
+        // 停止虚拟实盘
+        setSimulatorStatus('idle');
+        setSimulatorLogs(['虚拟实盘已禁用']);
+        // 注意：后端停止虚拟实盘的API尚未实现，暂时跳过
+        // await api.post('/simulator/stop', {
+        //   strategyId: strategyId
+        // });
+      }
+      
+      // 3. 重新获取策略数据，确保状态一致
+      fetchStrategy();
+    } catch (error) {
+      // 恢复之前的状态
+      setSimulatorRunning(!start);
+      setSimulatorStatus('error');
+      setSimulatorLogs(prev => [`虚拟实盘操作失败: ${error.response?.data?.message || error.message}`, ...prev]);
+      message.error(`虚拟实盘操作失败: ${error.response?.data?.message || error.message}`);
+      // 重新获取策略数据，确保状态一致
+      fetchStrategy();
     }
   };
 
@@ -336,6 +398,47 @@ const BacktestResult = () => {
       fetchStrategy();
     }
   }, [strategyId]);
+
+  // 获取策略的账户信息
+  const fetchAccounts = async () => {
+    try {
+      setFetchingAccounts(true);
+      const response = await api.get(`/simulator/account`, {
+        params: {
+          strategyId: strategyId
+        }
+      });
+      setAccounts(response.data.accounts || []);
+    } catch (error) {
+      console.error('获取账户信息失败:', error);
+      setAccounts([]);
+    } finally {
+      setFetchingAccounts(false);
+    }
+  };
+
+  // 当策略数据更新时，同步虚拟实盘状态并获取账户信息
+  useEffect(() => {
+    if (strategy) {
+      // 根据策略的status字段更新simulatorRunning状态
+      setSimulatorRunning(strategy.status === '已启用');
+      
+      // 如果策略已启用，获取账户信息
+      if (strategy.status === '已启用') {
+        fetchAccounts();
+      } else {
+        // 否则清空账户信息
+        setAccounts([]);
+      }
+    }
+  }, [strategy]);
+
+  // 当开关状态变化时，重新获取账户信息
+  useEffect(() => {
+    if (simulatorRunning) {
+      fetchAccounts();
+    }
+  }, [simulatorRunning]);
   
   // 处理选项卡切换事件
   const handleTabChange = (key) => {
@@ -620,6 +723,191 @@ const BacktestResult = () => {
                         <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: 300, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'Consolas, Menlo, Monaco, source-code-pro, monospace' }}>
                           {backtestLogs.length > 0 ? backtestLogs.join('\n') : '暂无日志'}
                         </pre>
+                      </Card>
+                      
+                      
+                    </div>
+                  </TabPane>
+                  <TabPane tab="虚拟实盘" key="simulator">
+                    <div style={{ marginBottom: 16 }}>
+                      {/* 虚拟实盘状态卡片 */}
+                      <div style={{ 
+                        marginBottom: 20, 
+                        padding: 16, 
+                        backgroundColor: '#ffffff', 
+                        borderRadius: 8, 
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        gap: 24,
+                        flexWrap: 'wrap'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ 
+                            fontSize: 14, 
+                            fontWeight: 500, 
+                            color: '#333333',
+                            minWidth: 100
+                          }}>虚拟实盘状态:</span>
+                          <Switch
+                              checked={simulatorRunning}
+                              onChange={(checked) => handleSimulatorToggle(checked)}
+                              checkedChildren="实盘"
+                              unCheckedChildren="禁用"
+                            />
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ 
+                            fontSize: 14, 
+                            fontWeight: 500, 
+                            color: '#333333',
+                            minWidth: 80
+                          }}>运行状态:</span>
+                          <span style={{
+                            margin: 0, 
+                            fontWeight: '500', 
+                            fontSize: 14, 
+                            color: (strategy?.runningStatus === 'running' ? '#52c41a' : 
+                                   strategy?.runningStatus === 'paused' ? '#1890ff' : 
+                                   strategy?.runningStatus === 'error' ? '#f5222d' : '#faad14'),
+                            backgroundColor: (strategy?.runningStatus === 'running' ? '#f6ffed' : 
+                                           strategy?.runningStatus === 'paused' ? '#e6f7ff' : 
+                                           strategy?.runningStatus === 'error' ? '#fff2f0' : '#fffbe6'),
+                            border: `1px solid ${(strategy?.runningStatus === 'running' ? '#b7eb8f' : 
+                                            strategy?.runningStatus === 'paused' ? '#91d5ff' : 
+                                            strategy?.runningStatus === 'error' ? '#ffccc7' : '#ffe58f')}`,
+                            padding: '2px 12px',
+                            borderRadius: 12,
+                            display: 'inline-block'
+                          }}>
+                            {strategy?.runningStatus === 'running' && '运行中'}
+                            {strategy?.runningStatus === 'paused' && '已暂停'}
+                            {strategy?.runningStatus === 'error' && '错误'}
+                            {strategy?.runningStatus === 'stopped' && '已停止'}
+                            {!strategy?.runningStatus && '已停止'}
+                          </span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ 
+                            fontSize: 14, 
+                            fontWeight: 500, 
+                            color: '#333333',
+                            minWidth: 80
+                          }}>启动方式:</span>
+                          <Switch
+                            checked={strategy?.startMode === 'auto' || false}
+                            onChange={async (checked) => {
+                              try {
+                                const newMode = checked ? 'auto' : 'manual';
+                                await api.put(`/strategies/${strategyId}`, { startMode: newMode });
+                                // 立即更新本地状态，提高用户体验
+                                setStrategy(prev => ({ ...prev, startMode: newMode }));
+                                message.success(`启动方式已设置为${newMode === 'auto' ? '自动' : '手动'}`);
+                              } catch (error) {
+                                console.error('设置启动方式失败:', error);
+                                message.error('设置启动方式失败');
+                                // 失败时重新获取最新数据
+                                fetchStrategy();
+                              }
+                            }}
+                            checkedChildren={<span>自动</span>}
+                            unCheckedChildren={<span>手动</span>}
+                          />
+                        </div>
+                      </div>
+                       
+                      {/* 账户信息卡片 - 仅在策略启用时显示 */}
+                      {simulatorRunning && (
+                        <Card 
+                          title="账户信息" 
+                          style={{ 
+                            marginBottom: 20, 
+                            borderRadius: 8, 
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)' 
+                          }}
+                          headStyle={{ 
+                            backgroundColor: '#ffffff', 
+                            fontSize: 14,
+                            fontWeight: 500,
+                            borderBottom: '1px solid #f0f0f0'
+                          }}
+                        >
+                          {fetchingAccounts ? (
+                            <div style={{ textAlign: 'center', padding: 24 }}>
+                              <span>加载账户信息中...</span>
+                            </div>
+                          ) : accounts.length > 0 ? (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                                  <th style={{ padding: 12, textAlign: 'left', fontSize: 13, fontWeight: 500, color: '#333' }}>网关名称</th>
+                                  <th style={{ padding: 12, textAlign: 'right', fontSize: 13, fontWeight: 500, color: '#333' }}>总资产</th>
+                                  <th style={{ padding: 12, textAlign: 'right', fontSize: 13, fontWeight: 500, color: '#333' }}>可用资金</th>
+                                  <th style={{ padding: 12, textAlign: 'right', fontSize: 13, fontWeight: 500, color: '#333' }}>冻结资金</th>
+                                  <th style={{ padding: 12, textAlign: 'center', fontSize: 13, fontWeight: 500, color: '#333' }}>状态</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {accounts.map((account, index) => (
+                                  <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                    <td style={{ padding: 12, fontSize: 13, color: '#666' }}>{account.gatewayName}</td>
+                                    <td style={{ padding: 12, textAlign: 'right', fontSize: 13, color: '#333' }}>{account.balance?.toFixed(2) || '0.00'}</td>
+                                    <td style={{ padding: 12, textAlign: 'right', fontSize: 13, color: '#333' }}>{account.available?.toFixed(2) || '0.00'}</td>
+                                    <td style={{ padding: 12, textAlign: 'right', fontSize: 13, color: '#333' }}>{account.frozen?.toFixed(2) || '0.00'}</td>
+                                    <td style={{ padding: 12, textAlign: 'center', fontSize: 13 }}>
+                                      <Tag 
+                                        color={account.status === 'ACTIVE' ? 'green' : 
+                                               account.status === 'FROZEN' ? 'yellow' : 
+                                               account.status === 'CLOSED' ? 'red' : 'gray'}
+                                      >
+                                        {account.status === 'ACTIVE' && '活跃'}
+                                        {account.status === 'FROZEN' && '冻结'}
+                                        {account.status === 'CLOSED' && '关闭'}
+                                        {account.status === 'KILLPOS' && '强平'}
+                                        {!account.status && '未知'}
+                                      </Tag>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ 
+                              textAlign: 'center', 
+                              color: '#8c8c8c', 
+                              padding: 24 
+                            }}>
+                              <p style={{ margin: 0, fontSize: 14 }}>暂无账户信息</p>
+                            </div>
+                          )}
+                        </Card>
+                      )}
+                       
+                      {/* 虚拟实盘配置卡片 */}
+                      <Card 
+                        title="虚拟实盘配置" 
+                        style={{ 
+                          marginBottom: 20, 
+                          borderRadius: 8, 
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)' 
+                        }}
+                        headStyle={{ 
+                          backgroundColor: '#ffffff', 
+                          fontSize: 14,
+                          fontWeight: 500,
+                          borderBottom: '1px solid #f0f0f0'
+                        }}
+                      >
+                        <div style={{ 
+                          textAlign: 'center', 
+                          color: '#8c8c8c', 
+                          padding: 24 
+                        }}>
+                          <p style={{ margin: 0, fontSize: 14 }}>虚拟实盘配置功能即将上线</p>
+                        </div>
                       </Card>
                       
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Row, Col, message } from 'antd';
-import { LineChartOutlined, BarChartOutlined, TrophyOutlined, ArrowUpOutlined, PlusOutlined } from '@ant-design/icons';
+import { LineChartOutlined, BarChartOutlined, TrophyOutlined, ArrowUpOutlined, PlusOutlined, CopyOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,6 +29,8 @@ const MyStrategies = () => {
     navigate(`/strategy/backtest/${strategyId}`, { state: { fromRunBacktest: true } });
   };
 
+
+
   // 获取策略图标
   const getStrategyIcon = (strategyType) => {
     const iconMap = {
@@ -44,9 +46,14 @@ const MyStrategies = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ margin: 0, fontSize: 28 }}>我的策略</h1>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/strategy/create')}>
-          新建策略
-        </Button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/strategy/create')}>
+            新建策略
+          </Button>
+          <Button type="default" icon={<CopyOutlined />} onClick={() => navigate('/strategy/clone')}>
+            从模板克隆策略
+          </Button>
+        </div>
       </div>
       
       <Row gutter={[24, 24]} align="stretch">
@@ -132,34 +139,36 @@ const MyStrategies = () => {
                 
                 <div style={{ margin: '16px 0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <span style={{ color: '#666', fontSize: 12 }}>回测收益</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
                       <p style={{ margin: 0, color: backtestReturn >= 0 ? '#52c41a' : '#f5222d', fontWeight: 'bold', fontSize: 18 }}>
                         {backtestReturn >= 0 ? '+' : ''}{backtestReturn}%
                       </p>
+                      <span style={{ color: '#666', fontSize: 12 }}>回测收益</span>
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <span style={{ color: '#666', fontSize: 12 }}>最大回撤</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
                       <p style={{ margin: 0, color: '#f5222d', fontWeight: 'bold', fontSize: 18 }}>
                         {maxDrawdown}%
                       </p>
+                      <span style={{ color: '#666', fontSize: 12 }}>最大回撤</span>
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <span style={{ color: '#666', fontSize: 12 }}>年化收益</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
                       <p style={{ margin: 0, fontWeight: 'bold', fontSize: 18 }}>
                         {annualized}%
                       </p>
+                      <span style={{ color: '#666', fontSize: 12 }}>年化收益</span>
                     </div>
                   </div>
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
                       <span style={{ color: '#666', fontSize: 12 }}>上次回测</span>
                       <p style={{ margin: 0, fontWeight: '500', fontSize: 14 }}>
                         {formatDate(strategy.lastBacktestAt)}
@@ -167,7 +176,7 @@ const MyStrategies = () => {
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
                       <span style={{ color: '#666', fontSize: 12 }}>创建时间</span>
                       <p style={{ margin: 0, fontWeight: '500', fontSize: 14 }}>
                         {formatDate(strategy.createdAt)}
@@ -175,11 +184,21 @@ const MyStrategies = () => {
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      <span style={{ color: '#666', fontSize: 12 }}>状态</span>
-                      <p style={{ margin: 0, fontWeight: '500', fontSize: 14, color: strategy.status === '已启用' ? '#52c41a' : '#faad14' }}>
-                        {strategy.status}
-                      </p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'column' }}>
+                      <span style={{ color: '#666', fontSize: 12, marginBottom: 4 }}>虚拟实盘</span>
+                      <span style={{
+                        margin: 0, 
+                        fontWeight: '500', 
+                        fontSize: 14, 
+                        color: strategy.status === '已启用' ? '#52c41a' : '#faad14',
+                        backgroundColor: strategy.status === '已启用' ? '#f6ffed' : '#fffbe6',
+                        border: `1px solid ${strategy.status === '已启用' ? '#b7eb8f' : '#ffe58f'}`,
+                        padding: '2px 12px',
+                        borderRadius: 12,
+                        display: 'inline-block'
+                      }}>
+                        {strategy.status === '已启用' ? '启用' : '禁用'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -189,22 +208,23 @@ const MyStrategies = () => {
                     type="primary" 
                     onClick={() => handleRunBacktest(strategy._id || strategy.id)}
                     style={{
-                      borderRadius: 20,
-                      padding: '8px 24px',
-                      fontSize: 14,
+                      borderRadius: 24,
+                      padding: '10px 32px',
+                      fontSize: 16,
                       fontWeight: 500,
-                      boxShadow: '0 2px 8px rgba(24, 144, 255, 0.3)',
+                      boxShadow: '0 4px 12px rgba(24, 144, 255, 0.3)',
                       transition: 'all 0.3s ease',
                       border: 'none',
-                      background: 'linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)'
+                      background: '#1890ff',
+                      color: '#fff'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'scale(1.05)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.4)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(24, 144, 255, 0.4)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 144, 255, 0.3)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.3)';
                     }}
                   >
                     运行回测
@@ -213,22 +233,23 @@ const MyStrategies = () => {
                     type="default" 
                     onClick={() => navigate(`/strategy/backtest/${strategy._id || strategy.id}`)}
                     style={{
-                      borderRadius: 20,
-                      padding: '8px 24px',
-                      fontSize: 14,
+                      borderRadius: 24,
+                      padding: '10px 32px',
+                      fontSize: 16,
                       fontWeight: 500,
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
                       transition: 'all 0.3s ease',
                       border: '1px solid #d9d9d9',
-                      background: '#fff'
+                      background: '#fff',
+                      color: '#666'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'scale(1.05)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
                     }}
                   >
                     查看策略

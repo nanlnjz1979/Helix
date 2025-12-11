@@ -72,6 +72,10 @@ if (isClusterMaster) {
     const templateRoutes = require('./routes/templateRoutes');
     const backtestRoutes = require('./routes/backtestRoutes');
     const monitorRoutes = require('./routes/monitorRoutes');
+    // 导入模拟器相关路由
+    const simulatorRoutes = require('./routes/simulatorRoutes');
+    // 导入订单相关路由
+    const orderRoutes = require('./routes/orderRoutes');
     
     // 路由
     app.use('/api/auth', authRoutes);
@@ -83,8 +87,12 @@ if (isClusterMaster) {
     app.use('/api/backtest', backtestRoutes);
     // 系统监控路由
     app.use('/api/monitor', monitorRoutes);
+    // 模拟器相关路由
+    app.use('/api/simulator', simulatorRoutes);
+    // 订单相关路由
+    app.use('/api/orders', orderRoutes);
    
-    // 只有当categoryRoutes存在时才挂载
+    // 只有当categoryRoutesModule存在且有router属性时才挂载
     if (categoryRoutesModule && categoryRoutesModule.router) {
       app.use('/api', categoryRoutesModule.router); // 将类别路由挂载到公共API路径，允许普通用户访问受限操作
       app.use('/api/admin', categoryRoutesModule.router); // 同时挂载到admin路径用于管理员完整操作

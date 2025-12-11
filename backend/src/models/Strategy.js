@@ -75,6 +75,18 @@ if (mongoose.models.Strategy) {
     },
     lastBacktestAt: {
       type: Date
+    },
+    // 运行状态字段
+    runningStatus: {
+      type: String,
+      enum: ['stopped', 'running', 'paused', 'error'],
+      default: 'stopped'
+    },
+    // 启动方式字段
+    startMode: {
+      type: String,
+      enum: ['manual', 'auto', 'scheduled'],
+      default: 'manual'
     }
   });
 

@@ -153,8 +153,8 @@ const StrategyClone = () => {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/strategy')}>
-          返回策略列表
+        <Button type="link" icon={<ArrowLeftOutlined />} onClick={() => navigate('/my-strategies')}>
+          返回我的策略
         </Button>
         <h2 style={{ margin: 0, marginLeft: 8 }}>从模板克隆策略</h2>
       </div>

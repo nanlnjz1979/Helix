@@ -149,7 +149,7 @@ const StrategyCreate = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/strategy')}>返回策略列表</Button>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/my-strategies')}>返回我的策略</Button>
           <h2 style={{ margin: 0 }}>创建新策略</h2>
         </div>
         <div>
