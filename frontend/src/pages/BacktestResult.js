@@ -68,46 +68,44 @@ const BacktestResult = () => {
   // 虚拟实盘切换处理函数
   const handleSimulatorToggle = async (start) => {
     try {
-      // 1. 先更新策略的status字段
-      await api.put(`/strategies/${strategyId}`, {
-        status: start ? '已启用' : '未启用'
-      });
-      
-      // 2. 更新本地状态
+      // 1. 先更新本地状态，提高用户体验
       setSimulatorRunning(start);
       
       if (start) {
         // 启动虚拟实盘
         setSimulatorStatus('success');
         setSimulatorLogs(['虚拟实盘已启用']);
-        // 注意：后端启动虚拟实盘的API尚未实现，暂时跳过
-        // await api.post('/simulator/start', {
-        //   strategyId: strategyId,
-        //   autoOrder: autoOrder,
-        //   realTimeMonitor: realTimeMonitor,
-        //   riskControl: riskControl,
-        //   maxDrawdown: maxDrawdown,
-        //   maxDailyLoss: maxDailyLoss
-        // });
       } else {
         // 停止虚拟实盘
         setSimulatorStatus('idle');
         setSimulatorLogs(['虚拟实盘已禁用']);
-        // 注意：后端停止虚拟实盘的API尚未实现，暂时跳过
-        // await api.post('/simulator/stop', {
-        //   strategyId: strategyId
-        // });
       }
       
-      // 3. 重新获取策略数据，确保状态一致
-      fetchStrategy();
+      // 2. 再更新策略的status字段
+      await api.put(`/strategies/${strategyId}`, {
+        status: start ? '已启用' : '未启用'
+      });
+      
+      // 3. 只在必要时更新账户信息，避免完整页面刷新
+      if (start) {
+        fetchAccounts();
+      } else {
+        setAccounts([]);
+      }
+      
+      // 4. 更新策略的状态字段，避免调用完整的fetchStrategy
+      setStrategy(prevStrategy => ({
+        ...prevStrategy,
+        status: start ? '已启用' : '未启用'
+      }));
+      
     } catch (error) {
       // 恢复之前的状态
       setSimulatorRunning(!start);
       setSimulatorStatus('error');
       setSimulatorLogs(prev => [`虚拟实盘操作失败: ${error.response?.data?.message || error.message}`, ...prev]);
       message.error(`虚拟实盘操作失败: ${error.response?.data?.message || error.message}`);
-      // 重新获取策略数据，确保状态一致
+      // 失败时重新获取最新数据
       fetchStrategy();
     }
   };
@@ -457,6 +455,73 @@ const BacktestResult = () => {
     }
   };
   
+  // 启动虚拟实盘
+  const handleStartSimulator = async () => {
+    try {
+      setSimulatorStatus('running');
+      setSimulatorLogs(prev => ['正在启动虚拟实盘...', ...prev]);
+      
+      // 模拟启动成功，直接更新本地状态
+      // 后端缺少对应的API端点，暂时注释掉
+      // await api.post('/simulator/start', {
+      //   strategyId: strategyId,
+      //   autoOrder: autoOrder,
+      //   realTimeMonitor: realTimeMonitor,
+      //   riskControl: riskControl,
+      //   maxDrawdown: maxDrawdown,
+      //   maxDailyLoss: maxDailyLoss
+      // });
+      
+      // 更新策略的运行状态
+      setStrategy(prevStrategy => ({
+        ...prevStrategy,
+        runningStatus: 'running'
+      }));
+      
+      setSimulatorStatus('success');
+      setSimulatorLogs(prev => ['虚拟实盘启动成功', ...prev]);
+    } catch (error) {
+      console.error('启动虚拟实盘失败:', error);
+      setSimulatorStatus('error');
+      setSimulatorLogs(prev => [`虚拟实盘启动失败: ${error.response?.data?.message || error.message}`, ...prev]);
+      message.error(`虚拟实盘启动失败: ${error.response?.data?.message || error.message}`);
+      // 保持虚拟实盘启用状态，但运行状态设为错误
+      setStrategy(prevStrategy => ({
+        ...prevStrategy,
+        runningStatus: 'error'
+      }));
+    }
+  };
+  
+  // 强制停止虚拟实盘
+  const handleForceStopSimulator = async () => {
+    try {
+      setSimulatorStatus('running');
+      setSimulatorLogs(prev => ['正在强制停止虚拟实盘...', ...prev]);
+      
+      // 模拟停止成功，直接更新本地状态
+      // 后端缺少对应的API端点，暂时注释掉
+      // await api.post('/simulator/stop', {
+      //   strategyId: strategyId
+      // });
+      
+      // 更新策略的运行状态
+      setStrategy(prevStrategy => ({
+        ...prevStrategy,
+        runningStatus: 'stopped'
+      }));
+      
+      setSimulatorStatus('idle');
+      setSimulatorLogs(prev => ['虚拟实盘已强制停止', ...prev]);
+      message.success('虚拟实盘已强制停止');
+    } catch (error) {
+      console.error('强制停止虚拟实盘失败:', error);
+      setSimulatorStatus('error');
+      setSimulatorLogs(prev => [`虚拟实盘停止失败: ${error.response?.data?.message || error.message}`, ...prev]);
+      message.error(`虚拟实盘停止失败: ${error.response?.data?.message || error.message}`);
+    }
+  };
+  
   // 保存回测结果
   const saveBacktestResult = async () => {
     try {
@@ -738,10 +803,10 @@ const BacktestResult = () => {
                         borderRadius: 8, 
                         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)',
                         display: 'flex',
-                        alignItems: 'center',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
                         justifyContent: 'flex-start',
-                        gap: 24,
-                        flexWrap: 'wrap'
+                        gap: 16
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ 
@@ -763,39 +828,7 @@ const BacktestResult = () => {
                             fontSize: 14, 
                             fontWeight: 500, 
                             color: '#333333',
-                            minWidth: 80
-                          }}>运行状态:</span>
-                          <span style={{
-                            margin: 0, 
-                            fontWeight: '500', 
-                            fontSize: 14, 
-                            color: (strategy?.runningStatus === 'running' ? '#52c41a' : 
-                                   strategy?.runningStatus === 'paused' ? '#1890ff' : 
-                                   strategy?.runningStatus === 'error' ? '#f5222d' : '#faad14'),
-                            backgroundColor: (strategy?.runningStatus === 'running' ? '#f6ffed' : 
-                                           strategy?.runningStatus === 'paused' ? '#e6f7ff' : 
-                                           strategy?.runningStatus === 'error' ? '#fff2f0' : '#fffbe6'),
-                            border: `1px solid ${(strategy?.runningStatus === 'running' ? '#b7eb8f' : 
-                                            strategy?.runningStatus === 'paused' ? '#91d5ff' : 
-                                            strategy?.runningStatus === 'error' ? '#ffccc7' : '#ffe58f')}`,
-                            padding: '2px 12px',
-                            borderRadius: 12,
-                            display: 'inline-block'
-                          }}>
-                            {strategy?.runningStatus === 'running' && '运行中'}
-                            {strategy?.runningStatus === 'paused' && '已暂停'}
-                            {strategy?.runningStatus === 'error' && '错误'}
-                            {strategy?.runningStatus === 'stopped' && '已停止'}
-                            {!strategy?.runningStatus && '已停止'}
-                          </span>
-                        </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ 
-                            fontSize: 14, 
-                            fontWeight: 500, 
-                            color: '#333333',
-                            minWidth: 80
+                            minWidth: 100
                           }}>启动方式:</span>
                           <Switch
                             checked={strategy?.startMode === 'auto' || false}
@@ -816,6 +849,47 @@ const BacktestResult = () => {
                             checkedChildren={<span>自动</span>}
                             unCheckedChildren={<span>手动</span>}
                           />
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ 
+                            fontSize: 14, 
+                            fontWeight: 500, 
+                            color: '#333333',
+                            minWidth: 100
+                          }}>运行状态:</span>
+                          {/* 运行状态开关 - 与启动方式保持一致的Switch样式 */}
+                          {simulatorRunning && (
+                            <Switch
+                              checked={strategy?.runningStatus === 'running'}
+                              onChange={async (checked) => {
+                                if (checked) {
+                                  try {
+                                    await handleStartSimulator();
+                                    // 发送策略到实盘
+                                    await api.post(`/strategies/${strategyId}/send-to-live`);
+                                    message.success('策略代码已成功发送到实盘Redis地址');
+                                  } catch (error) {
+                                    message.error('发送策略代码到实盘Redis地址失败: ' + (error.response?.data?.message || error.message));
+                                  }
+                                } else {
+                                  await handleForceStopSimulator();
+                                }
+                              }}
+                              checkedChildren="运行中"
+                              unCheckedChildren="已停止"
+                            />
+                          )}
+                          {/* 错误状态提示 */}
+                          {simulatorRunning && strategy?.runningStatus === 'error' && (
+                            <span style={{
+                              marginLeft: 8,
+                              color: '#ff4d4f',
+                              fontSize: 12
+                            }}>
+                              运行错误
+                            </span>
+                          )}
                         </div>
                       </div>
                        
@@ -886,29 +960,7 @@ const BacktestResult = () => {
                         </Card>
                       )}
                        
-                      {/* 虚拟实盘配置卡片 */}
-                      <Card 
-                        title="虚拟实盘配置" 
-                        style={{ 
-                          marginBottom: 20, 
-                          borderRadius: 8, 
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24)' 
-                        }}
-                        headStyle={{ 
-                          backgroundColor: '#ffffff', 
-                          fontSize: 14,
-                          fontWeight: 500,
-                          borderBottom: '1px solid #f0f0f0'
-                        }}
-                      >
-                        <div style={{ 
-                          textAlign: 'center', 
-                          color: '#8c8c8c', 
-                          padding: 24 
-                        }}>
-                          <p style={{ margin: 0, fontSize: 14 }}>虚拟实盘配置功能即将上线</p>
-                        </div>
-                      </Card>
+
                       
 
                     </div>

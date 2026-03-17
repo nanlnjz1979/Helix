@@ -24,4 +24,7 @@ router.delete('/:id', auth, strategyController.deleteStrategy);
 // 代码编译（SSE流）
 router.get('/:id/compile', auth, strategyController.compileStrategySSE);
 
+// 发送策略代码到实盘Redis地址
+router.post('/:id/send-to-live', auth, strategyController.sendStrategyToLiveRedis);
+
 module.exports = router;

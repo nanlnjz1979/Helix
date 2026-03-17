@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
+const configController = require('../controllers/configController');
 
 // 首先应用auth中间件验证用户身份
 router.use(auth);
@@ -31,11 +32,20 @@ router.get('/', (req, res) => {
       '/api/admin/strategies/:id/category-logs - 策略分类变更日志',
       '/api/admin/categories/stats - 分类统计',
       '/api/admin/categories/distribution - 分类分布',
-      '/api/admin/categories/performance - 分类性能'
+      '/api/admin/categories/performance - 分类性能',
+      '/api/admin/configs - 配置管理',
+      '/api/admin/configs/:key - 单个配置管理'
     ],
     user: req.user
   });
 });
+
+// 配置管理路由
+router.get('/configs', configController.getAllConfigs);
+router.get('/configs/:key', configController.getConfigByKey);
+router.post('/configs', configController.setConfig);
+router.put('/configs', configController.setConfig);
+router.delete('/configs/:key', configController.deleteConfig);
 
 // 用户管理路由
 router.get('/users', adminController.getAllUsers);

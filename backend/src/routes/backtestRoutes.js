@@ -104,9 +104,62 @@ async function startRealBacktest(jobId, strategyId, params) {
     let jsonBuffer = '';
     let jsonFound = false;
 
+    // 编码检测函数
+    function detectEncoding(buffer) {
+      // 检查是否为UTF-8 BOM
+      if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+        return 'utf8';
+      }
+      
+      // 检查是否为UTF-16 LE BOM
+      if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
+        return 'utf16le';
+      }
+      
+      // 检查是否为UTF-16 BE BOM
+      if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
+        return 'utf16be';
+      }
+      
+      // 尝试检测GBK编码
+      // GBK编码的特点：没有0x00字节（除了字符串结束符），且包含中文特有的编码范围
+      let hasGbkChars = false;
+      for (let i = 0; i < buffer.length; i++) {
+        const byte = buffer[i];
+        // GBK的第一个字节范围：0x81-0xFE
+        if (byte >= 0x81 && byte <= 0xFE) {
+          // GBK的第二个字节范围：0x40-0x7E, 0x80-0xFE
+          if (i + 1 < buffer.length) {
+            const nextByte = buffer[i + 1];
+            if ((nextByte >= 0x40 && nextByte <= 0x7E) || (nextByte >= 0x80 && nextByte <= 0xFE)) {
+              hasGbkChars = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (hasGbkChars) {
+        return 'gbk';
+      }
+      
+      // 默认使用UTF-8
+      return 'utf8';
+    }
+
     child.stdout.on('data', (buf) => {
       try {
-        const text = buf.toString();
+        // 检测编码并转换
+        const encoding = detectEncoding(buf);
+        let text;
+        
+        if (encoding === 'utf8') {
+          text = buf.toString('utf8');
+        } else {
+          const iconv = require('iconv-lite');
+          text = iconv.decode(buf, encoding);
+        }
+        
         lineBuffer += text;
         // 逐行处理
         const parts = lineBuffer.split(/\r?\n/);
@@ -126,32 +179,48 @@ async function startRealBacktest(jobId, strategyId, params) {
           }
           // 累积JSON候选（容错，多行/分段）
           if (!jsonFound && l.includes('{')) {
+            job.logs.push(`[${new Date().toLocaleTimeString()}] 检测到可能的JSON开始：${l.substring(0, 100)}${l.length > 100 ? '...' : ''}`);
             jsonBuffer += (jsonBuffer ? '\n' : '') + l;
             try {
               const candidate = jsonBuffer.trim();
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 尝试解析JSON：${candidate.substring(0, 200)}${candidate.length > 200 ? '...' : ''}`);
               // 尝试解析
               const parsed = JSON.parse(candidate);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] JSON解析成功，结果类型：${typeof parsed}`);
+              if (typeof parsed === 'object') {
+                job.logs.push(`[${new Date().toLocaleTimeString()}] JSON对象包含的键：${Object.keys(parsed).join(', ')}`);
+              }
               job.result = parsed;
               job.status = 'done';
               job.logs.push(`[${new Date().toLocaleTimeString()}] 回测完成，结果已生成`);
               jsonFound = true;
               jsonBuffer = '';
               return;
-            } catch (_) {
+            } catch (parseError) {
+              job.logs.push(`[${new Date().toLocaleTimeString()}] JSON解析失败，错误：${parseError.message}`);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 继续积累JSON数据...`);
               // 未能解析，继续积累
             }
           } else if (!jsonFound && jsonBuffer) {
+            job.logs.push(`[${new Date().toLocaleTimeString()}] 继续积累JSON数据：${l.substring(0, 100)}${l.length > 100 ? '...' : ''}`);
             jsonBuffer += '\n' + l;
             try {
               const candidate = jsonBuffer.trim();
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 尝试解析累积的JSON：${candidate.substring(0, 200)}${candidate.length > 200 ? '...' : ''}`);
               const parsed = JSON.parse(candidate);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] JSON解析成功，结果类型：${typeof parsed}`);
+              if (typeof parsed === 'object') {
+                job.logs.push(`[${new Date().toLocaleTimeString()}] JSON对象包含的键：${Object.keys(parsed).join(', ')}`);
+              }
               job.result = parsed;
               job.status = 'done';
               job.logs.push(`[${new Date().toLocaleTimeString()}] 回测完成，结果已生成`);
               jsonFound = true;
               jsonBuffer = '';
               return;
-            } catch (_) {
+            } catch (parseError) {
+              job.logs.push(`[${new Date().toLocaleTimeString()}] JSON解析失败，错误：${parseError.message}`);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 继续积累JSON数据...`);
               // 继续积累
             }
           }
@@ -165,7 +234,17 @@ async function startRealBacktest(jobId, strategyId, params) {
 
     child.stderr.on('data', (buf) => {
       try {
-        const text = buf.toString();
+        // 检测编码并转换
+        const encoding = detectEncoding(buf);
+        let text;
+        
+        if (encoding === 'utf8') {
+          text = buf.toString('utf8');
+        } else {
+          const iconv = require('iconv-lite');
+          text = iconv.decode(buf, encoding);
+        }
+        
         text.split(/\r?\n/).forEach((line) => {
           const l = line.trim();
           if (!l) return;
@@ -188,16 +267,26 @@ async function startRealBacktest(jobId, strategyId, params) {
       // 处理残留行缓冲
       try {
         const leftover = (lineBuffer || '').trim();
+        job.logs.push(`[${new Date().toLocaleTimeString()}] 处理残留行缓冲，长度：${leftover.length}`);
         if (!jsonFound && leftover) {
+          job.logs.push(`[${new Date().toLocaleTimeString()}] 尝试解析尾部JSON：${leftover.substring(0, 200)}${leftover.length > 200 ? '...' : ''}`);
           // 最后一行也可能是JSON
           try {
             const parsed = JSON.parse(leftover);
+            job.logs.push(`[${new Date().toLocaleTimeString()}] 尾部JSON解析成功，结果类型：${typeof parsed}`);
+            if (typeof parsed === 'object') {
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 尾部JSON对象包含的键：${Object.keys(parsed).join(', ')}`);
+            }
             job.result = parsed;
             job.status = 'done';
             job.logs.push(`[${new Date().toLocaleTimeString()}] 回测完成，结果已生成（尾部JSON）`);
-          } catch (_) {}
+          } catch (parseError) {
+            job.logs.push(`[${new Date().toLocaleTimeString()}] 尾部JSON解析失败，错误：${parseError.message}`);
+          }
         }
-      } catch (_) {}
+      } catch (e) {
+        job.logs.push(`[${new Date().toLocaleTimeString()}] 处理残留行缓冲时发生错误：${e.message}`);
+      }
 
       if (job.status !== 'done') {
         if (code === 0 && job.result) {

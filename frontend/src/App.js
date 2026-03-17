@@ -30,6 +30,7 @@ import StrategyCreate from './pages/StrategyCreate';
 import StrategyEdit from './pages/StrategyEdit';
 import StrategyClone from './pages/StrategyClone';
 import AdminBackup from './pages/AdminBackup';
+import AdminConfig from './pages/AdminConfig';
 
 // 导入布局组件
 import MainLayout from './components/layouts/MainLayout';
@@ -103,6 +104,15 @@ function App() {
           <AuthAdminPrivateRoute>
             <AdminLayout>
               <AdminBackup />
+            </AdminLayout>
+          </AuthAdminPrivateRoute>
+        } />
+        
+        {/* 配置管理路由 */}
+        <Route path="/admin/config" element={
+          <AuthAdminPrivateRoute>
+            <AdminLayout>
+              <AdminConfig />
             </AdminLayout>
           </AuthAdminPrivateRoute>
         } />

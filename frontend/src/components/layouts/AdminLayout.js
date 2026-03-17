@@ -40,6 +40,7 @@ const AdminLayout = ({ children }) => {
     { key: 'strategies', icon: <CodeOutlined />, label: '策略管理', onClick: () => navigate('/admin/strategies') },
     { key: 'categories', icon: <TagOutlined />, label: '策略类型管理', onClick: () => navigate('/admin/categories') },
     { key: 'templates', icon: <FileTextOutlined />, label: '模板管理', onClick: () => navigate('/admin/templates') },
+    { key: 'config', icon: <SettingOutlined />, label: '参数配置', onClick: () => navigate('/admin/config') },
     { key: 'backup', icon: <DatabaseOutlined />, label: '备份恢复', onClick: () => navigate('/admin/backup') }
   ];
 

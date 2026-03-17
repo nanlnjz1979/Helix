@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
+// 新增: 引入Redis工具函数
+const { sendStrategyToCelery } = require('../utils/redisUtil');
 
 // 获取所有策略
 exports.getAllStrategies = async (req, res) => {
@@ -287,5 +289,51 @@ exports.compileStrategySSE = async (req, res) => {
     console.error('编译过程异常:', error);
     send({ level: 'error', message: `编译异常: ${error.message}` });
     return end({ status: 'error', message: error.message });
+  }
+};
+
+// 发送策略代码到Celery
+exports.sendStrategyToLiveRedis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 查找策略
+    const strategy = await Strategy.findOne({ _id: id, user: req.user.id });
+    if (!strategy) {
+      return res.status(404).json({ message: '策略不存在或无权限' });
+    }
+    
+    // 获取策略代码
+    const code = strategy.code || '';
+    if (!code || code.trim().length === 0) {
+      return res.status(400).json({ message: '策略代码为空，无法发送' });
+    }
+    
+    // 发送策略代码到Celery
+    const celeryResult = await sendStrategyToCelery(strategy._id, code);
+    
+    if (celeryResult.success) {
+      // 更新数据库中的策略状态为运行中
+      strategy.runningStatus = 'running';
+      strategy.lastRunTime = new Date();
+      await strategy.save();
+      
+      res.status(200).json({
+        message: '策略代码已成功发送到Celery，状态已更新为运行中',
+        celeryResult,
+        strategy: {
+          runningStatus: strategy.runningStatus,
+          lastRunTime: strategy.lastRunTime
+        }
+      });
+    } else {
+      res.status(500).json({
+        message: '发送策略代码到Celery失败',
+        celeryResult
+      });
+    }
+  } catch (error) {
+    console.error('发送策略代码到Celery失败:', error);
+    res.status(500).json({ message: '发送策略代码到Celery失败', error: error.message });
   }
 };

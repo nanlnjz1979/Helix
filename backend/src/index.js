@@ -61,7 +61,7 @@ if (isClusterMaster) {
   app.use('/api/admin/backup', require('./routes/backupRoutes'));
 
   // 设置路由和启动服务器的函数
-  function setupRoutesAndStartServer() {
+  async function setupRoutesAndStartServer() {
     // 导入路由
     const authRoutes = require('./routes/auth');
     const strategyRoutes = require('./routes/strategies');
@@ -111,6 +111,24 @@ if (isClusterMaster) {
       }
     } catch (error) {
       console.error(`工作进程 ${process.pid}: 初始化类别控制器时出错:`, error.message);
+    }
+    
+    // 初始化配置控制器，设置默认配置
+    try {
+      const configController = require('./controllers/configController');
+      if (configController.initialize) {
+        await configController.initialize();
+        console.log(`工作进程 ${process.pid}: 配置控制器初始化完成`);
+        
+        // 初始化配置缓存
+        const configUtil = require('./utils/configUtil');
+        await configUtil.initializeConfigCache();
+        console.log(`工作进程 ${process.pid}: 配置缓存初始化完成`);
+      } else {
+        console.log(`工作进程 ${process.pid}: 配置控制器没有initialize方法`);
+      }
+    } catch (error) {
+      console.error(`工作进程 ${process.pid}: 初始化配置控制器时出错:`, error.message);
     }
    
     // 根路由
