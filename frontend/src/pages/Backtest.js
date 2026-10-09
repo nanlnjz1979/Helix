@@ -4,6 +4,11 @@ import { PlayCircleOutlined, CodeOutlined, ArrowUpOutlined, ArrowDownOutlined } 
 import ReactECharts from 'echarts-for-react';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
+import {
+  EMPTY_SYMBOLS_MESSAGE,
+  buildBacktestRequest,
+  normalizeSymbols,
+} from '../services/buildBacktestRequest';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -146,19 +151,50 @@ const Backtest = () => {
     }
   };
 
+  const showBacktestConfigError = (err) => {
+    const validationError = Array.isArray(err?.errorFields);
+    const symbolsField = validationError
+      ? err.errorFields.find((field) => {
+          const name = Array.isArray(field?.name) ? field.name[0] : field?.name;
+          return name === 'symbols';
+        })
+      : null;
+    const emptySymbols = err?.message === EMPTY_SYMBOLS_MESSAGE;
+
+    if (!validationError && !emptySymbols) {
+      return false;
+    }
+
+    if (topActiveTab === 'run') {
+      setTopActiveTab('config');
+    }
+
+    if (emptySymbols) {
+      form.setFields([{ name: 'symbols', errors: [EMPTY_SYMBOLS_MESSAGE] }]);
+      message.error(EMPTY_SYMBOLS_MESSAGE);
+      return true;
+    }
+
+    const symbolsMessage = symbolsField?.errors?.[0];
+    if (symbolsMessage) {
+      message.error(symbolsMessage);
+      return true;
+    }
+
+    message.error(err.errorFields?.[0]?.errors?.[0] || '请完善回测配置');
+    return true;
+  };
+
   // 执行回测
   const handleRunBacktest = async () => {
     try {
       const values = await form.validateFields();
+      const payload = buildBacktestRequest(values);
       setIsRunning(true);
       setRunProgress(0);
       // 保留历史日志，不清空；记录一次启动日志
       const startTs = new Date().toLocaleTimeString();
       setRunLogs(prev => [...prev, `[${startTs}] 开始回测，策略: ${values.strategy}`]);
-      const payload = {
-        strategyId: values.strategy,
-        params: values.params || {}
-      };
       const res = await api.post('/backtest/run', payload);
       const data = res?.data || null;
       if (data && data.jobId) {
@@ -233,6 +269,9 @@ const Backtest = () => {
         throw new Error('服务端未返回数据');
       }
     } catch (err) {
+      if (showBacktestConfigError(err)) {
+        return;
+      }
       console.error('回测运行失败:', err);
       const ts = new Date().toLocaleTimeString();
       setRunLogs(prev => [...prev, `[${ts}] 回测失败: ${err?.response?.data?.message || err.message}`]);
@@ -263,6 +302,30 @@ const Backtest = () => {
                     <Option key={strategy.id || strategy._id} value={strategy.id || strategy._id}>{strategy.name}</Option>
                   ))}
                 </Select>
+              </Form.Item>
+
+              <Form.Item
+                label="标的代码"
+                name="symbols"
+                required
+                rules={[
+                  {
+                    validator: async (_, value) => {
+                      if (normalizeSymbols(value).length === 0) {
+                        throw new Error(EMPTY_SYMBOLS_MESSAGE);
+                      }
+                    },
+                  },
+                ]}
+              >
+                {/* 【缺少标的目录接口】暂无标的列表，由用户输入代码 */}
+                <Select
+                  mode="tags"
+                  placeholder="输入标的代码后回车，可输入多个"
+                  tokenSeparators={[',', '，', ' ']}
+                  allowClear
+                  notFoundContent={null}
+                />
               </Form.Item>
 
               {/* 代码输入的参数 */}
